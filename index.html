@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <!-- Google Font Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-  <!-- Supabase JS CDN -->
+  <!-- Supabase JS CDN (Required for Database Optimization) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <script>
@@ -123,8 +123,16 @@
       keywordsCount: 114,
       isReviewEditorCollapsed: true, // Default to collapsed for Boss's eyesight optimization
       bossLargeTextMode: true,       // Default to true to assist presbyopic viewing
-      selectedHandoffIndex: 0,       // Current active handoff details page
       
+      // User accounts (Dynamically managed by Boss/Executive)
+      accounts: [
+        { id: "acc-1", username: "boss", pass: "senor123", role: "boss", label: "Boss & Assistant / 決策高層與特助" },
+        { id: "acc-2", username: "pm", pass: "pm123", role: "pm", label: "Product Manager (PM) / 專案經理" },
+        { id: "acc-3", username: "designer", pass: "design123", role: "designer", label: "Web Designer / 網頁排版工程師" }
+      ],
+      currentUser: null,
+      currentRole: null, // 'boss', 'pm', 'designer'
+
       // Approved pages database for designer review (page-by-page)
       approvedPagesList: [
         {
@@ -133,7 +141,7 @@
           pageName: "hecto-pos-a516",
           projectName: "Hecto POS A516 AI-Integrated Kitchen System",
           keywords: ["IP65 Rated POS Terminal", "Kitchen Proof POS System", "High-Temp Kitchen POS"],
-          status: "Approved",
+          status: "Pending",
           generatedData: {
             mainTitle: "[H1] Hecto POS A516: Heavy-Duty IP65 Fanless Touch System for High-Temp Kitchens",
             mainIntro: "[H2] Eliminating Thermal and Grease Failures in Busy Australian Commercial Kitchens\n\n[H3] Rugged Engineering for Constant Thermal Stress\nIn busy, high-temperature Australian commercial kitchens, equipment failures are incredibly costly. The Senor Hecto POS A516 is specifically designed with a premium IP65 rated waterproof front bezel and a robust fanless die-casting aluminum alloy chassis to ensure continuous operation under extreme thermal stress.\n\n[H3] Zero Fan-Related Ingress Hazards\nBy removing vulnerable cooling fans, grease-laden air cannot build up inside. This dramatically lowers the failure rates compared to consumer-grade retail terminals.",
@@ -153,7 +161,7 @@
           pageName: "kitchen-management-kds",
           projectName: "KDS Kitchen Management Hospitality Solution",
           keywords: ["Waterproof Kitchen Monitor", "Kitchen Display Screen Hardware", "Restaurant KDS Terminals"],
-          status: "Approved",
+          status: "Pending",
           generatedData: {
             mainTitle: "[H1] Commercial Kitchen Display Systems (KDS) for Extreme Hospitality Environments",
             mainIntro: "[H2] Accelerating Ticket Fulfillment and Communication with Fanless Monitors\n\n[H3] Fully Waterproof Kitchen Display Screen Hardware Solutions\nOur KDS display framework provides kitchen automation that minimizes human error. Built with full SUS304 grade stainless steel and fanless cooling, this platform eliminates grease and dust accumulation inside the components.\n\n[H3] Complete Moisture Seals and Auto-Dimming LCDs\nEnsuring crystal-clear readability for chefs, the Waterproof Kitchen Monitor handles wet-hand touching and harsh hot steam without single-point responsive sensor failure.",
@@ -187,7 +195,7 @@
           projectName: "Hecto POS A516 AI-Integrated Kitchen System",
           type: "Draft Saved / 草稿儲存",
           slug: "hecto-pos-a516",
-          summary: "Initial Dify generated content with raw specs from Australia datasheet.",
+          summary: "Initial generated content with raw specs from Australia datasheet.",
           payload: {
             mainTitle: "[H1] Hecto POS A516: Heavy-Duty IP65 Fanless Touch System for High-Temp Kitchens",
             metaTitle: "Senor Hecto POS A516 | Heavy-Duty IP65 Waterproof POS Hardware"
@@ -260,7 +268,7 @@
     // Supabase client instance holder
     let supabaseClient = null;
 
-    // Check localStorage on load for saved keys
+    // Load saved database configuration
     function initSupabase() {
       const url = localStorage.getItem('supabase_url');
       const key = localStorage.getItem('supabase_key');
@@ -287,6 +295,20 @@
           indicator.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
           text.innerHTML = `Sandbox Demo Mode (<span class="text-amber-400 font-bold">SANDBOX</span>)`;
         }
+      }
+    }
+
+    // Initialize custom security credentials
+    function initAccounts() {
+      const stored = localStorage.getItem('auth_accounts');
+      if (stored) {
+        try {
+          state.accounts = JSON.parse(stored);
+        } catch (e) {
+          console.error("Failed parsing accounts: ", e);
+        }
+      } else {
+        localStorage.setItem('auth_accounts', JSON.stringify(state.accounts));
       }
     }
   </script>
@@ -332,6 +354,140 @@
         toast.classList.add('opacity-0', 'translate-y-2');
         setTimeout(() => toast.remove(), 5000);
       }, 5000);
+    }
+  </script>
+
+  <!-- Authentication Overlays & Controls -->
+  <div id="login-overlay" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full mx-4 space-y-6 shadow-2xl">
+      <div class="text-center space-y-2">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-teal-500/10 border border-senor-primary flex items-center justify-center">
+          <i class="fa-solid fa-lock text-senor-light text-2xl"></i>
+        </div>
+        <h2 class="text-xl font-bold tracking-tight text-white mt-4">Enterprise Login / 系統安全認證</h2>
+        <p class="text-xs text-slate-400">Please authenticate using your company credential key.</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Username / 登入帳號</label>
+          <input type="text" id="login-username" placeholder="e.g., boss / pm" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none glow-border text-slate-100 font-mono" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Access Key Passcode / 安全通行密碼</label>
+          <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none glow-border text-slate-100 font-mono" />
+        </div>
+        <button onclick="handleLogin()" class="w-full bg-senor-primary hover:bg-senor-light text-white font-bold py-3.5 rounded-xl transition text-sm flex items-center justify-center gap-2">
+          Verify Security Clearance / 登入安全驗證 <i class="fa-solid fa-arrow-right-to-bracket"></i>
+        </button>
+      </div>
+
+      <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-850/50 text-[10px] text-slate-500 space-y-1">
+        <p class="font-bold text-slate-400 uppercase tracking-widest mb-1">🛠️ Sandbox Default Credentials:</p>
+        <p>• Boss: ID <code class="text-teal-400 font-mono">boss</code> / Pass <code class="text-teal-400 font-mono">senor123</code></p>
+        <p>• PM: ID <code class="text-teal-400 font-mono">pm</code> / Pass <code class="text-teal-400 font-mono">pm123</code></p>
+        <p>• Designer: ID <code class="text-teal-400 font-mono">designer</code> / Pass <code class="text-teal-400 font-mono">design123</code></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Security Login Handler dynamically looking into accounts list
+    function handleLogin() {
+      const usernameInput = document.getElementById('login-username').value.trim().toLowerCase();
+      const passcode = document.getElementById('login-password').value.trim();
+
+      const matchedAccount = state.accounts.find(acc => acc.username === usernameInput && acc.pass === passcode);
+
+      if (matchedAccount) {
+        state.currentUser = matchedAccount.username;
+        state.currentRole = matchedAccount.role;
+        state.approver = matchedAccount.label.split('/')[0].trim();
+
+        // Save login state in localstorage
+        localStorage.setItem('auth_user', matchedAccount.username);
+        localStorage.setItem('auth_role', matchedAccount.role);
+
+        document.getElementById('login-overlay').classList.add('hidden');
+        showNotification("Security Authenticated", `Logged in successfully as [${matchedAccount.username}].`, "success");
+
+        // Display user badge on navbar
+        document.getElementById('auth-user-badge').textContent = `User: ${matchedAccount.username} (${matchedAccount.role.toUpperCase()})`;
+        
+        // Setup permissions
+        enforceRolePermissions();
+      } else {
+        showNotification("Authentication Failed", "Incorrect Username or Passcode key. Access denied.", "error");
+      }
+    }
+
+    function checkExistingAuth() {
+      const savedUser = localStorage.getItem('auth_user');
+      const savedRole = localStorage.getItem('auth_role');
+      if (savedUser && savedRole) {
+        const acc = state.accounts.find(a => a.username === savedUser && a.role === savedRole);
+        if (acc) {
+          state.currentUser = savedUser;
+          state.currentRole = savedRole;
+          state.approver = acc.label.split('/')[0].trim();
+
+          document.getElementById('login-overlay').classList.add('hidden');
+          document.getElementById('auth-user-badge').textContent = `User: ${savedUser} (${savedRole.toUpperCase()})`;
+          enforceRolePermissions();
+        } else {
+          logout();
+        }
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_role');
+      state.currentUser = null;
+      state.currentRole = null;
+      document.getElementById('login-overlay').classList.remove('hidden');
+      document.getElementById('login-username').value = "";
+      document.getElementById('login-password').value = "";
+    }
+
+    // Direct Page and tab access blocks depending on active authenticated role
+    function enforceRolePermissions() {
+      const role = state.currentRole;
+      if (role === 'boss') {
+        // Boss can access everything
+        enableTab('btn-executive', true);
+        enableTab('btn-pm', true);
+        enableTab('btn-review', true);
+        enableTab('btn-handoff', true);
+        switchRole('executive');
+        renderExecutiveAccountManager(); // Load account management components for boss
+      } else if (role === 'pm') {
+        // PM only has PM Workspace
+        enableTab('btn-executive', false);
+        enableTab('btn-pm', true);
+        enableTab('btn-review', false);
+        enableTab('btn-handoff', false);
+        switchRole('pm');
+      } else if (role === 'designer') {
+        // Designer only has Handoff Desk
+        enableTab('btn-executive', false);
+        enableTab('btn-pm', false);
+        enableTab('btn-review', false);
+        enableTab('btn-handoff', true);
+        switchRole('handoff');
+      }
+    }
+
+    function enableTab(tabId, enabled) {
+      const btn = document.getElementById(tabId);
+      if (!btn) return;
+      if (enabled) {
+        btn.classList.remove('opacity-40', 'cursor-not-allowed');
+        btn.disabled = false;
+      } else {
+        btn.classList.add('opacity-40', 'cursor-not-allowed');
+        btn.disabled = true;
+      }
     }
   </script>
 
@@ -394,40 +550,83 @@
     }
   </script>
 
-  <!-- Supabase Config Modal -->
+  <!-- System API Config Modal (Supports Supabase & direct Gemini/GPT API Key input) -->
   <div id="supabase-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 space-y-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
       <div class="flex justify-between items-center pb-2 border-b border-slate-800">
         <h3 class="text-sm font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-database text-emerald-400"></i> Supabase Database Configuration
+          <i class="fa-solid fa-gears text-teal-400"></i> Global System & API Configuration Panel
         </h3>
         <button onclick="toggleSupabaseModal(false)" class="text-slate-400 hover:text-white transition">
           <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
-      <p class="text-[11px] text-slate-400 leading-relaxed">
-        We do not hardcode your database credentials. Provide your project URL & API keys below to link directly with your cloud environment. Your credentials remain stored strictly in your browser's local sandbox storage.
-      </p>
-      <div class="space-y-3">
-        <label class="block">
-          <span class="text-xs text-slate-400 font-semibold">Supabase Reference URL</span>
-          <input id="config-db-url" placeholder="https://yourproject.supabase.co" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
-        </label>
-        <label class="block">
-          <span class="text-xs text-slate-400 font-semibold">Supabase Anon Public API Key</span>
-          <input id="config-db-key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
-        </label>
+
+      <!-- Settings Tabs -->
+      <div class="flex border-b border-slate-800 text-xs">
+        <button onclick="switchSettingsTab('settings-db')" id="btn-settings-db" class="px-4 py-2 border-b-2 border-teal-500 font-bold text-teal-400">Database (Supabase)</button>
+        <button onclick="switchSettingsTab('settings-ai')" id="btn-settings-ai" class="px-4 py-2 border-b-2 border-transparent text-slate-400">Direct AI (Gemini/OpenAI)</button>
       </div>
-      <div class="flex gap-2 justify-end pt-2">
-        <button onclick="clearSavedDatabaseKeys()" class="bg-slate-800 hover:bg-slate-750 text-xs px-4 py-2 rounded-xl transition text-rose-400">
-          Clear Keys
+
+      <!-- DB tab -->
+      <div id="settings-db" class="space-y-3 pt-2">
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Provide your project URL & API keys below to link directly with your cloud environment. Your credentials remain stored strictly in your browser's local sandbox storage.
+        </p>
+        <div class="space-y-3">
+          <label class="block">
+            <span class="text-xs text-slate-400 font-semibold">Supabase Reference URL</span>
+            <input id="config-db-url" placeholder="https://yourproject.supabase.co" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400 font-semibold">Supabase Anon Public API Key</span>
+            <input id="config-db-key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
+          </label>
+        </div>
+      </div>
+
+      <!-- AI tab -->
+      <div id="settings-ai" class="hidden space-y-3 pt-2">
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Bypass Dify! Connect directly to Google Gemini or OpenAI GPT models using your client-side API Key. Kept completely inside browser storage.
+        </p>
+        <div class="space-y-3">
+          <label class="block">
+            <span class="text-xs text-slate-400 font-semibold">AI Model Provider / 智慧大腦平台</span>
+            <select id="config-ai-provider" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-teal-300 font-bold">
+              <option value="gemini" selected>Google Gemini Pro (Gemini-1.5-Flash) - Recommended / Free-tier</option>
+              <option value="openai">OpenAI GPT (GPT-4o-mini)</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400 font-semibold">API Key / 金鑰密碼</span>
+            <input id="config-ai-key" type="password" placeholder="AI-Key: AIzaSy... / sk-proj-..." class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
+          </label>
+        </div>
+      </div>
+
+      <div class="flex gap-2 justify-end pt-2 border-t border-slate-800">
+        <button onclick="clearSavedDatabaseKeys()" class="bg-slate-850 hover:bg-slate-800 text-xs px-4 py-2 rounded-xl transition text-rose-400">
+          Clear Keys / 清除金鑰
         </button>
         <button onclick="saveDatabaseConfig()" class="bg-senor-primary hover:bg-senor-light text-white text-xs font-bold px-4 py-2 rounded-xl transition">
-          Save & Connect
+          Save Settings / 儲存連線
         </button>
       </div>
     </div>
   </div>
+
+  <script>
+    function switchSettingsTab(tab) {
+      document.getElementById('settings-db').classList.add('hidden');
+      document.getElementById('settings-ai').classList.add('hidden');
+      document.getElementById('btn-settings-db').className = "px-4 py-2 border-b-2 border-transparent text-slate-400";
+      document.getElementById('btn-settings-ai').className = "px-4 py-2 border-b-2 border-transparent text-slate-400";
+
+      document.getElementById(tab).classList.remove('hidden');
+      document.getElementById('btn-' + tab).className = "px-4 py-2 border-b-2 border-teal-500 font-bold text-teal-400";
+    }
+  </script>
 
   <!-- History View Detail Modal -->
   <div id="history-view-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
@@ -478,7 +677,7 @@
   </div>
 
   <!-- Header / Nav (Bilingual with English priority to Boss) -->
-  <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-col xl:flex-row justify-between items-center gap-3 shrink-0 sticky top-0 z-40">
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-col xl:flex-row justify-between items-center gap-3 shrink-0 top-0 z-40 sticky">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-xl bg-teal-500/10 border border-senor-primary flex items-center justify-center animate-pulse">
         <i class="fa-solid fa-brain text-senor-light"></i>
@@ -491,10 +690,16 @@
 
     <!-- DB Connect & Role switcher panel -->
     <div class="flex items-center gap-3 flex-wrap justify-center">
+      <!-- User Account Info & Logout -->
+      <div class="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800 text-[10px]">
+        <span class="text-slate-400 font-semibold" id="auth-user-badge">User: Checking...</span>
+        <button onclick="logout()" class="text-rose-400 hover:text-rose-300 font-bold transition ml-2 uppercase tracking-wider">[Log Out]</button>
+      </div>
+
       <!-- Database status indicators -->
       <button onclick="toggleSupabaseModal(true)" class="flex items-center gap-2 bg-slate-950 hover:bg-slate-850 px-3 py-2 rounded-xl border border-slate-800 text-[10px] text-slate-400 transition">
         <span id="supabase-status-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-        <span id="supabase-status-text">Supabase Config</span>
+        <span id="supabase-status-text">Supabase & API Config</span>
         <i class="fa-solid fa-gear text-slate-500 hover:text-white"></i>
       </button>
 
@@ -519,7 +724,7 @@
   <!-- Main Workspace -->
   <main class="flex-1 overflow-y-auto soft-scrollbar p-4 md:p-6">
 
-    <!-- 1. EXECUTIVE DASHBOARD / 主管總覽 (Strict English for Boss) -->
+    <!-- 1. EXECUTIVE DASHBOARD / 主管總覽 -->
     <section id="view-executive" class="space-y-6">
       <div class="flex flex-col lg:flex-row justify-between gap-4">
         <div>
@@ -595,16 +800,6 @@
         </div>
         <div class="overflow-x-auto soft-scrollbar">
           <table class="w-full text-left text-xs">
-            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider">
-              <tr>
-                <th class="p-3">Target URL on Production</th>
-                <th class="p-3">Page Classification</th>
-                <th class="p-3">Focus Keywords</th>
-                <th class="p-3">Responsible Creator</th>
-                <th class="p-3">Ground-Truth Spec File</th>
-                <th class="p-3 text-right">Action</th>
-              </tr>
-            </thead>
             <tbody class="divide-y divide-slate-800 text-slate-300">
               <tr class="hover:bg-slate-850 transition">
                 <td class="p-3 font-mono text-senor-light">/products/hecto-pos-a516/</td>
@@ -613,7 +808,7 @@
                 </td>
                 <td class="p-3">IP65 Rated POS Terminal, Kitchen Proof POS System</td>
                 <td class="p-3">PM Mark</td>
-                <td class="p-3 font-mono text-xs text-slate-400"><i class="fa-solid fa-file-pdf mr-1 text-rose-400"></i>Hecto-POS-A516_Datasheet_Australia.pdf</td>
+                <td class="p-3 font-mono text-xs text-slate-400"><i class="fa-solid fa-file-pdf mr-1 text-rose-400"></i>Hecto-POS-A516_Australia.pdf</td>
                 <td class="p-3 text-right">
                   <button onclick="startReview('products')" class="bg-senor-primary hover:bg-senor-light text-white px-3 py-1.5 rounded-lg transition font-medium">Verify Content</button>
                 </td>
@@ -632,6 +827,71 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Boss-only dynamic Account & Permission Control Center -->
+      <div id="executive-account-section" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-users-gear text-senor-light"></i>
+            Account & Security Control Center / 帳號與權限安全中心
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            Boss and Executive level administrators can create, modify, and delete local user access profiles and role permissions.
+            <span class="block text-xs text-slate-500 mt-0.5">/ 專為高階主管與特助設計之安全主控台：支援動態新增、編輯與刪除使用者，可設定三類職責權限。</span>
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 pt-2">
+          <!-- Left: User Creation & Editing Form -->
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-4">
+            <p class="text-xs font-bold text-teal-400 uppercase tracking-wider"><i class="fa-solid fa-user-plus"></i> Create & Edit Security Profile / 設定帳號資料</p>
+            <input type="hidden" id="manage-user-id" value="" />
+            
+            <div>
+              <label class="block text-[11px] text-slate-400 font-semibold mb-1">Username / 登入帳號 *</label>
+              <input type="text" id="manage-username" placeholder="e.g. mark-pm" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none glow-border font-mono" />
+            </div>
+            
+            <div>
+              <label class="block text-[11px] text-slate-400 font-semibold mb-1">Password / 安全通行密碼 *</label>
+              <input type="password" id="manage-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none glow-border font-mono" />
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 font-semibold mb-1">Role Permission / 職權角色分類 *</label>
+              <select id="manage-role" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-teal-300 font-bold focus:outline-none">
+                <option value="boss">Boss & Assistant / 決策高層與特助</option>
+                <option value="pm">Product Manager (PM) / 專案經理</option>
+                <option value="designer">Web Designer / 網頁排版工程師</option>
+              </select>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+              <button onclick="resetAccountManagerForm()" class="bg-slate-800 hover:bg-slate-750 text-slate-400 text-xs px-3 py-2 rounded-lg transition">Clear</button>
+              <button onclick="saveAccountProfile()" class="flex-1 bg-senor-primary hover:bg-senor-light text-white text-xs font-bold py-2 rounded-lg transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-shield-halved"></i> Save Profile / 儲存帳號
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Accounts Table List -->
+          <div class="xl:col-span-2 overflow-x-auto soft-scrollbar">
+            <table class="w-full text-left text-xs">
+              <thead class="text-slate-400 border-b border-slate-850 uppercase tracking-wider font-semibold">
+                <tr>
+                  <th class="p-3">User Account / 帳號</th>
+                  <th class="p-3">Password / 密碼</th>
+                  <th class="p-3">Role / 權限級別</th>
+                  <th class="p-3 text-right">Actions / 操作</th>
+                </tr>
+              </thead>
+              <tbody id="manage-accounts-table-body" class="divide-y divide-slate-850 text-slate-300">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -749,7 +1009,7 @@
                 <!-- Custom solution subdirectory input if solution selected -->
                 <div class="block md:col-span-1" id="solution-subfolder-block">
                   <span class="text-xs text-slate-400 font-semibold">Solutions Directory / 自訂類別目錄</span>
-                  <input id="solutionSubfolder" oninput="updateUrl()" value="hospitality" placeholder="e.g. hospitality, logistics, retail" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-teal-300 focus:outline-none glow-border" />
+                  <input id="solutionSubfolder" oninput="updateUrl()" value="hospitality" placeholder="e.g. hospitality, logistics, retail" class="mt-1.5 w-full bg-slate-900 border border-slate-770 rounded-xl p-3 text-xs font-mono text-teal-300 focus:outline-none glow-border" />
                 </div>
 
                 <div class="block md:col-span-1">
@@ -789,6 +1049,24 @@
                 <input id="kw1" value="IP65 Rated POS Terminal" oninput="updateKeywordCount()" class="keywordInput bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none glow-border font-mono text-slate-300" />
                 <input id="kw2" value="Kitchen Proof POS System" oninput="updateKeywordCount()" class="keywordInput bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none glow-border font-mono text-slate-300" />
                 <input id="kw3" value="High-Temp Kitchen POS" oninput="updateKeywordCount()" class="keywordInput bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none glow-border font-mono text-slate-300" />
+              </div>
+            </div>
+
+            <!-- Real-time Google Autocomplete Search Suggestions (Live Integration) -->
+            <div class="bg-slate-950 border border-slate-850 rounded-2xl p-4 space-y-3">
+              <div class="flex justify-between items-center">
+                <p class="text-xs font-bold text-teal-400 flex items-center gap-1.5">
+                  <i class="fa-brands fa-google text-blue-500"></i> Live Google Australia Search Hot Trends
+                </p>
+                <button onclick="triggerLiveGoogleSuggest()" class="bg-slate-800 hover:bg-slate-750 text-[10px] text-slate-200 px-3 py-1 rounded-lg font-bold transition">
+                  <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Retrieve Hot Queries / 撈取熱搜詞
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-400">
+                Queries Google's real-time suggest database based on your Slug name. Click on any keyword below to immediately bind it into your target checklist!
+              </p>
+              <div id="suggested-badges-wrapper" class="flex flex-wrap gap-1.5 pt-1">
+                <span class="text-[10px] text-slate-500 italic bg-slate-900 border border-slate-850 px-2 py-1 rounded">No terms loaded. Click 'Retrieve Hot Queries' to search Google complete.</span>
               </div>
             </div>
 
@@ -909,10 +1187,22 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
               </div>
             </div>
 
+            <!-- Loader Indicators -->
+            <div id="difyLoader" class="hidden bg-slate-950/95 border border-teal-500/30 rounded-2xl p-8 text-center space-y-4">
+              <div class="flex justify-center items-center gap-2">
+                <i class="fa-solid fa-spinner text-teal-400 text-3xl animate-spin"></i>
+                <span class="text-teal-300 font-bold text-lg">Direct Generative Engine Connecting...</span>
+              </div>
+              <div class="max-w-md mx-auto bg-slate-900 rounded-full h-2 overflow-hidden">
+                <div id="difyProgress" class="bg-teal-400 h-full rounded-full transition-all duration-300" style="width: 10%"></div>
+              </div>
+              <div id="difyLog" class="text-xs text-slate-500 font-mono">Connecting local sandbox environment...</div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="flex flex-wrap gap-3 pt-2">
               <button onclick="triggerDifyGeneration()" class="bg-senor-primary hover:bg-senor-light text-white font-bold px-6 py-3.5 rounded-xl text-sm transition flex items-center gap-2">
-                <i class="fa-solid fa-robot text-base"></i> 產生內容/send
+                <i class="fa-solid fa-robot text-base animate-bounce"></i> 產生內容/send
               </button>
               <button onclick="saveDraftToSupabaseOrLocal()" class="bg-slate-800 hover:bg-slate-750 text-white font-semibold px-5 py-3.5 rounded-xl text-sm transition">
                 Save Draft / 儲存草稿
@@ -950,7 +1240,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           </aside>
         </div>
 
-        <!-- PM Workspace Output & Real-time Live Simulator (PM Interactive Space - No Switching required!) -->
+        <!-- PM Workspace Output & Real-time Live Simulator (PM Preview Area - NO JUMPING) -->
         <div id="generatedOutput" class="hidden border-t border-slate-800 pt-6 space-y-4">
           <div class="flex flex-col lg:flex-row justify-between gap-3">
             <div>
@@ -959,7 +1249,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
                 AI-Generated English AEO Package (PM Interactive Space)
               </h3>
               <p class="text-xs text-slate-400 mt-1">
-                Edit raw values directly in the left fields. Observe sitemap updates and visual layouts directly inside the embedded simulator on the right.
+                Edit raw values directly in the left fields. Observe sitemap updates and visual layouts directly inside the embedded simulator.
               </p>
             </div>
           </div>
@@ -1033,7 +1323,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
               </div>
             </div>
 
-            <!-- Right: FAQs, Meta ALT & Live PM Simulator (PM PREVIEW AND EDIT FUNCTION) -->
+            <!-- Right: FAQs, Meta ALT & Live PM Simulator -->
             <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-4">
               <!-- FAQs section (Hidden for category pages dynamically) -->
               <div id="pm-faq-editor-block">
@@ -1059,10 +1349,10 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
                 <textarea id="out-imageSuggestion" oninput="syncPMToDraft()" rows="2" class="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-400 focus:outline-none"></textarea>
               </label>
 
-              <!-- In-place visualizer for PM (PREVIEW DURING EDITING) -->
+              <!-- In-place visualizer for PM -->
               <div class="border border-slate-800 rounded-xl p-4 bg-white text-slate-900 space-y-4">
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1.5"><i class="fa-solid fa-desktop"></i> PM Sandbox Real-time Simulator</p>
-                <div id="pm-sim-main" class="space-y-4">
+                <div id="pm-sim-main" class="space-y-4 font-sans text-xs">
                   <!-- JS Injection -->
                 </div>
               </div>
@@ -1117,7 +1407,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
               <tr>
                 <th class="p-3">Timestamp / 儲存時間</th>
                 <th class="p-3">Operator / 變更者</th>
-                <th class="p-3">Project / 網頁節點</th>
+                <th class="p-3">Project / 網網頁節點</th>
                 <th class="p-3">Type / 狀態</th>
                 <th class="p-3">Revision Summary / 備註</th>
                 <th class="p-3 text-right">Action / 處理</th>
@@ -1131,7 +1421,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       </div>
     </section>
 
-    <!-- 3. PROJECT REVIEW / 專案審查 (Presbyopia Zoom Optimized with Collapsible Editor) -->
+    <!-- 3. PROJECT REVIEW / 專案審查 -->
     <section id="view-review" class="hidden space-y-6">
       <div class="flex flex-col lg:flex-row justify-between gap-3">
         <div>
@@ -1139,7 +1429,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           <h2 class="text-2xl font-bold mt-1 text-white">Bilingual Verification & Zoom Simulator / 雙欄審核預覽</h2>
           <p class="text-sm text-slate-400 mt-1">
             Toggle <strong>Collapse Editor</strong> to gain max reading surface. Activate <strong>Presbyopia Reading Mode</strong> for larger comfortable fonts.
-            <span class="block text-xs text-slate-500 mt-0.5">/ 專為高階決策者設計：具備「摺疊左側欄位」與「老花友善放大字體」功能。</span>
+            <span class="block text-xs text-slate-500 mt-0.5">/ 專為高階決策者設計：具備「摺疊左側欄位」與「老花眼友善放大字體」功能。</span>
           </p>
         </div>
         
@@ -1296,7 +1586,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
 
           <!-- Simulated Browser (Zoom-able for Presbyopic Boss) -->
           <div id="sim-main-content-scroll" class="flex-1 overflow-y-auto soft-scrollbar bg-white text-slate-900 rounded-xl p-6 border border-slate-200 shadow-2xl space-y-5 boss-large-text">
-            <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-[11px] text-slate-500">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-[11px] text-slate-500 font-sans">
               <div class="flex items-center gap-1">
                 <span class="font-extrabold text-senor-dark uppercase tracking-widest text-xs">SENOR</span>
                 <span class="bg-senor-primary text-white px-1 text-[8px] rounded font-bold">TECH</span>
@@ -1309,7 +1599,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
               </div>
             </div>
 
-            <div id="sim-main-content" class="space-y-4">
+            <div id="sim-main-content" class="space-y-4 text-xs font-sans">
               <!-- Dynamically populated preview -->
             </div>
 
@@ -1348,74 +1638,40 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       <!-- Dev Indicators -->
       <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <p class="text-xs text-slate-400 font-bold">Approved Queue / 待處理</p>
+          <p class="text-xs text-slate-400 font-bold">Approved Queue</p>
           <p class="text-3xl font-bold mt-2 text-amber-400" id="handoff-pending-count">2</p>
         </div>
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <p class="text-xs text-slate-400 font-bold">In Active Production / 製作中</p>
+          <p class="text-xs text-slate-400 font-bold">In Active Production</p>
           <p class="text-3xl font-bold mt-2 text-indigo-400 font-mono font-semibold">4</p>
         </div>
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <p class="text-xs text-slate-400 font-bold">Sitemap Layout Issues / 問題回報</p>
+          <p class="text-xs text-slate-400 font-bold">Sitemap Layout Issues</p>
           <p class="text-3xl font-bold mt-2 text-rose-400 font-mono font-semibold">1</p>
         </div>
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <p class="text-xs text-slate-400 font-bold">AU Deployed (Month) / 本月已上線</p>
+          <p class="text-xs text-slate-400 font-bold">AU Deployed (Month)</p>
           <p class="text-3xl font-bold mt-2 text-emerald-400" id="handoff-published-count">16</p>
         </div>
       </div>
 
-      <!-- TASK LIST VIEW (待處理的檔案列表) -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+      <!-- Designer Workspace Selection Row (page by page review) -->
+      <div class="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-list-check text-teal-400"></i>
-            Approved Pending Sitemaps List / 待處理檔案列表 (設計師領任務)
-          </h3>
-          <p class="text-xs text-slate-400 mt-1">
-            Choose a sitemap page below to enter the production layout workbench, copy variables, and configure on the live WordPress system.
-            <span class="block text-xs text-slate-500 mt-0.5">/ 點擊「進入製作工作台」查看 PM 規劃之網址、老闆審核過的前端預覽與程式標籤。</span>
-          </p>
+          <span class="text-xs text-senor-light font-bold uppercase tracking-wider block">Individual Page Selector / 逐頁檢視控制台</span>
+          <span class="text-[11px] text-slate-400">Select which approved sitemap node to review, deploy and mark complete:</span>
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="handoff-task-board">
-          <!-- Dynamically populated with Javascript -->
-        </div>
+        <select id="handoffPageSelector" onchange="switchHandoffPage()" class="bg-slate-950 border border-slate-700 text-teal-300 font-bold p-2.5 rounded-xl text-xs focus:outline-none min-w-[320px] glow-border">
+          <!-- Dynamically populated options -->
+        </select>
       </div>
 
-      <!-- DESIGNER ACTIVE WORKBENCH PANEL (Only visible when a task is entered) -->
-      <div id="designer-workbench-container" class="hidden grid grid-cols-12 gap-6 pt-2">
+      <!-- DESIGNER PRODUCTION GRID -->
+      <div class="grid grid-cols-12 gap-6">
         
         <!-- Left Column: Atomized copyable fields & WordPress Gutenberg Block Map -->
-        <div class="col-span-12 xl:col-span-7 space-y-6">
+        <div class="col-span-12 xl:col-span-8 space-y-6">
           
-          <!-- Back button and title -->
-          <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-            <div>
-              <span class="text-[10px] bg-teal-500/10 text-teal-300 px-2 py-0.5 rounded font-mono font-bold uppercase">ACTIVE LAYOUT ENVIRONMENT</span>
-              <h3 class="text-base font-bold text-white mt-1" id="handoff-active-title">Loading Page Workspace...</h3>
-            </div>
-            <button onclick="exitDesignerWorkbench()" class="bg-slate-800 hover:bg-slate-750 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition">
-              <i class="fa-solid fa-arrow-left mr-1"></i> Back to Pending List / 返回列表
-            </button>
-          </div>
-
-          <!-- Target URL and Scope Details Card (PM已設定網址的欄位) -->
-          <div class="bg-slate-900 border border-senor-primary/40 rounded-2xl p-5 space-y-3">
-            <h3 class="text-sm font-bold text-senor-light flex items-center gap-2">
-              <i class="fa-solid fa-location-arrow"></i>
-              PM Configured Production URL Address / PM 已設定目標網址 (必填路徑)
-            </h3>
-            <p class="text-xs text-slate-400 leading-relaxed">
-              Ensure you create this page exactly at the following relative directory under the Australian domain.
-              <span class="block text-xs text-slate-500 mt-0.5">/ 設計師在官網發布時，請確保網頁網址路徑完全一致：</span>
-            </p>
-            <div class="flex gap-2">
-              <input id="h-pm-target-url" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-teal-300 font-bold select-all" />
-              <button onclick="copyHandoffField('h-pm-target-url')" class="bg-senor-primary hover:bg-senor-light text-white text-xs px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy Path</button>
-            </div>
-          </div>
-
           <!-- SEO Metadata Atom Block -->
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -1432,7 +1688,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
                 <span class="text-[11px] text-slate-400 font-bold block mb-1">Meta Title Tag (Copy direct into Yoast SEO / RankMath)</span>
                 <div class="flex gap-2">
                   <input id="h-meta-title" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 font-semibold" />
-                  <button onclick="copyHandoffField('h-meta-title')" class="bg-slate-800 hover:bg-slate-750 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
+                  <button onclick="copyHandoffField('h-meta-title')" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
                 </div>
               </div>
 
@@ -1441,7 +1697,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
                 <span class="text-[11px] text-slate-400 font-bold block mb-1">Meta Description (Snippet Intro)</span>
                 <div class="flex gap-2">
                   <textarea id="h-meta-desc" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 font-semibold"></textarea>
-                  <button onclick="copyHandoffField('h-meta-desc')" class="bg-slate-800 hover:bg-slate-750 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap self-stretch flex items-center justify-center"><i class="fa-solid fa-copy"></i> Copy</button>
+                  <button onclick="copyHandoffField('h-meta-desc')" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap self-stretch flex items-center justify-center"><i class="fa-solid fa-copy"></i> Copy</button>
                 </div>
               </div>
 
@@ -1450,7 +1706,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
                 <span class="text-[11px] text-slate-400 font-bold block mb-1">Target Focus Keywords</span>
                 <div class="flex gap-2">
                   <input id="h-meta-keywords" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 font-semibold" />
-                  <button onclick="copyHandoffField('h-meta-keywords')" class="bg-slate-800 hover:bg-slate-750 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
+                  <button onclick="copyHandoffField('h-meta-keywords')" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
                 </div>
               </div>
             </div>
@@ -1556,49 +1812,9 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           </div>
         </div>
 
-        <!-- Right Column: Boss-Approved Preview & Engineering Assets (老闆審核過的預覽畫面) -->
-        <div class="col-span-12 xl:col-span-5 space-y-6">
+        <!-- Right Column: Engineering Assets & Launch Submission -->
+        <div class="col-span-12 xl:col-span-4 space-y-6">
           
-          <!-- Boss-Approved Live Preview Container (老闆審核過的預覽畫面) -->
-          <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl p-5 space-y-3 flex flex-col justify-between max-h-[70vh]">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
-              <span class="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                <i class="fa-solid fa-circle-check animate-pulse text-emerald-400"></i>
-                Boss-Approved Page Layout / 老闆審核過的預覽畫面 (排版對標參考)
-              </span>
-              <span class="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">LOCKED PREVIEW</span>
-            </div>
-
-            <!-- Scrollable replica of the signed-off design -->
-            <div class="flex-1 overflow-y-auto soft-scrollbar bg-white text-slate-900 rounded-xl p-4 border border-slate-200 shadow-xl space-y-4 text-xs font-sans">
-              <div class="flex justify-between items-center border-b border-slate-200 pb-2 text-[10px] text-slate-500">
-                <div class="flex items-center gap-1">
-                  <span class="font-extrabold text-senor-dark uppercase tracking-widest text-xs">SENOR</span>
-                  <span class="bg-senor-primary text-white px-1 text-[8px] rounded font-bold">TECH</span>
-                </div>
-                <div class="flex gap-3 text-[9px] text-slate-600 font-semibold">
-                  <span>Products</span>
-                  <span>Solutions</span>
-                  <span>Support</span>
-                </div>
-              </div>
-
-              <!-- Output rendered by function loadHandoffData() -->
-              <div id="handoff-boss-preview-content" class="space-y-4">
-                <!-- Loaded dynamically on index select -->
-              </div>
-
-              <div class="border-t border-slate-200 pt-2 text-[8px] text-slate-400 flex justify-between">
-                <span>© 2026 Senor Tech Australia.</span>
-                <span class="font-mono text-slate-500" id="handoff-boss-preview-url">https://www.senortech.com.au/...</span>
-              </div>
-            </div>
-
-            <p class="text-[10px] text-slate-500 leading-normal">
-              <i class="fa-solid fa-circle-info mr-1"></i> Reference this layout preview above to replicate the exact block styling, headers, and element structure in WordPress / Gutenberg.
-            </p>
-          </div>
-
           <!-- Schema JSON-LD -->
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
             <div class="flex justify-between items-center">
@@ -1630,7 +1846,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
             </div>
           </div>
 
-          <!-- Submission Hub (Report Deployed Node) -->
+          <!-- Submission Hub -->
           <div class="bg-teal-950/20 border border-teal-500/20 rounded-2xl p-5 space-y-4">
             <div>
               <h4 class="text-sm font-bold text-senor-light flex items-center gap-1.5">
@@ -1668,6 +1884,18 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
   <script>
     // Tab and view switches
     function switchRole(role) {
+      // Permission guards
+      if (state.currentRole && state.currentRole !== 'boss') {
+        if (state.currentRole === 'pm' && role !== 'pm') {
+          showNotification("Security Gate", "Access Blocked: Boss/Executive permission clearance required.", "error");
+          return;
+        }
+        if (state.currentRole === 'designer' && role !== 'handoff') {
+          showNotification("Security Gate", "Access Blocked: Deployed Workspace restricted for Designer role only.", "error");
+          return;
+        }
+      }
+
       const views = ['executive', 'pm', 'review', 'handoff'];
       views.forEach(v => {
         const viewEl = document.getElementById('view-' + v);
@@ -1683,9 +1911,6 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       });
       if (role === 'pm') {
         renderHistoryArchiveTable();
-      }
-      if (role === 'handoff') {
-        renderHandoffTaskBoard();
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1854,7 +2079,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           </div>
         `;
         revHtml += `
-          <div class="text-[11px] text-slate-300 border-l-2 border-senor-primary pl-2 py-1">
+          <div class="text-[11px] text-slate-300 border-l-2 border-senor-primary pl-2 py-1 font-sans">
             <span class="font-bold text-teal-400">${sol.name}</span> (${sol.url})
           </div>
         `;
@@ -1864,25 +2089,295 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       if (reviewContainer) reviewContainer.innerHTML = revHtml;
     }
 
-    // AI simulated generation with keyword layout injection (PM產生資料後的預覽跟編輯功能)
-    function triggerDifyGeneration() {
-      updateUrl();
-      updateKeywordCount();
+    // Google Suggest Dynamic JSONP retrieval (100% Real Autocomplete without API Key!)
+    function triggerLiveGoogleSuggest() {
+      const slugVal = document.getElementById('pageName').value.trim();
+      const wrap = document.getElementById('suggested-badges-wrapper');
       
-      // Inject dummy loader inside form area
-      showNotification("Dify Engine Connecting", "Fetching spec guidelines and initiating NLP parser...", "info");
-      
-      const selectedDocKey = document.getElementById('difyDocument').value;
-      const fileData = difyFiles[selectedDocKey];
-      const targetCount = state.activeTask.targetWordCount;
+      if (!slugVal) {
+        showNotification("Google suggest", "Please input a URL Slug before retrieving trends.", "error");
+        return;
+      }
 
-      // Build out-live-sync pre-flight progress load
-      setTimeout(() => {
-        generatePrepopulatedContent(selectedDocKey);
-      }, 1000);
+      const queryTerm = slugVal.replace(/-/g, ' ');
+      showNotification("Google Complete", `Retrieving live suggestions for: "${queryTerm}"...`, "info");
+
+      // Set global JSONP callback
+      window.googleSuggestCallback = function(data) {
+        const terms = data[1]; // Google suggestions array
+        if (!terms || terms.length === 0) {
+          wrap.innerHTML = `<span class="text-[10px] text-rose-400">No suggestions retrieved from Google. Try another Slug term.</span>`;
+          return;
+        }
+
+        wrap.innerHTML = "";
+        terms.forEach((term, idx) => {
+          const badge = document.createElement('button');
+          badge.className = "text-[10px] font-semibold text-teal-200 bg-teal-950/40 border border-teal-800/40 hover:border-senor-light px-2 py-1 rounded-full transition-all cursor-pointer";
+          badge.innerHTML = `<i class="fa-solid fa-plus mr-1 text-[8px]"></i> ${term}`;
+          badge.onclick = () => {
+            // Apply this suggestion into active keyword slots
+            applySearchTermToKeywords(term);
+          };
+          wrap.appendChild(badge);
+        });
+
+        showNotification("Success", `Loaded ${terms.length} live Google suggestions.`, "success");
+        // Cleanup script tag
+        document.getElementById('google-jsonp-script')?.remove();
+      };
+
+      const script = document.createElement('script');
+      script.id = 'google-jsonp-script';
+      // client=chrome/firefox CORS endpoint uses standard JSONP
+      script.src = `https://suggestqueries.google.com/complete/search?client=chrome&hl=en&gl=au&q=${encodeURIComponent(queryTerm)}&callback=googleSuggestCallback`;
+      document.body.appendChild(script);
     }
 
-    // Prepopulate B2B English Copy Layout Pack (purely in English)
+    function applySearchTermToKeywords(term) {
+      const kw1 = document.getElementById('kw1');
+      const kw2 = document.getElementById('kw2');
+      const kw3 = document.getElementById('kw3');
+
+      // Find first empty slot
+      if (!kw1.value) {
+        kw1.value = term;
+      } else if (!kw2.value) {
+        kw2.value = term;
+      } else {
+        kw3.value = term; // Overwrite last slot if full
+      }
+
+      updateKeywordCount();
+      showNotification("Keyword applied", `Injected: "${term}" into focus slot.`, "success");
+    }
+
+    // Direct Gemini/GPT Live API Generation
+    async function triggerDifyGeneration() {
+      updateUrl();
+      updateKeywordCount();
+
+      // Check if client has saved API keys
+      const aiProvider = localStorage.getItem('ai_provider') || 'gemini';
+      const aiKey = localStorage.getItem('ai_key');
+
+      // Load loader indicator
+      const loader = document.getElementById('difyLoader');
+      const log = document.getElementById('difyLog');
+      const progress = document.getElementById('difyProgress');
+      const output = document.getElementById('generatedOutput');
+
+      // If no Key, fallback to simulator prepopulated values
+      if (!aiKey) {
+        showNotification("Simulator Mode", "No AI API Key configured. Loading High-Fidelity Sandbox pre-sets.", "info");
+        
+        loader.classList.remove('hidden');
+        output.classList.add('hidden');
+        loader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        const steps = [
+          { time: 300, pct: "30%", text: "Connecting sandbox spec database..." },
+          { time: 700, pct: "70%", text: "Fitting SEO variables into layout tags..." },
+          { time: 1000, pct: "100%", text: "Sitemap elements prepared successfully." }
+        ];
+
+        steps.forEach(step => {
+          setTimeout(() => {
+            progress.style.width = step.pct;
+            log.textContent = step.text;
+            if (step.pct === "100%") {
+              setTimeout(() => {
+                loader.classList.add('hidden');
+                generatePrepopulatedContent(document.getElementById('difyDocument').value);
+              }, 200);
+            }
+          }, step.time);
+        });
+        return;
+      }
+
+      // If API key is active, execute direct fetch!
+      loader.classList.remove('hidden');
+      output.classList.add('hidden');
+      progress.style.width = "15%";
+      log.textContent = `Connecting to ${aiProvider.toUpperCase()} network...`;
+      loader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // Gather form inputs
+      const pageType = document.getElementById('pageType').value;
+      const targetCount = state.activeTask.targetWordCount;
+      const selectedDocKey = document.getElementById('difyDocument').value;
+      const fileSpecs = difyFiles[selectedDocKey].specs;
+
+      const keywords = [
+        document.getElementById('kw1').value || "IP65 Rated POS Terminal",
+        document.getElementById('kw2').value || "Kitchen Proof POS System",
+        document.getElementById('kw3').value || "High-Temp Kitchen POS"
+      ];
+
+      // Build structured system prompt
+      const promptText = `
+        You are a senior B2B SEO/AEO content optimizer for Senor Tech Australia (B2B Point of Sale manufacturer).
+        Produce a structured English copywriting package tailored for search-generative engines.
+        
+        CRITICAL: Your output MUST be formatted strictly as a single JSON block so our system can parse it immediately. Do not include markdown tags like \`\`\`json outside of the JSON output. Just output raw JSON text.
+        
+        Page Type: ${pageType}
+        Target word count: ${targetCount}
+        Focus keywords (You MUST naturally embed ALL of these into headers or paragraph copy):
+        1. ${keywords[0]}
+        2. ${keywords[1]}
+        3. ${keywords[2]}
+        
+        Strict Technical specs to include (Do not hallucinate specs):
+        - CPU Architecture: ${fileSpecs.cpu}
+        - Waterproof: ${fileSpecs.waterproof}
+        - Chassis structure: ${fileSpecs.chassis}
+        - Australian standard I/O: ${fileSpecs.io}
+        - Intended Scenario: ${fileSpecs.usecase}
+        
+        The JSON output structure must contain these exact keys:
+        {
+          "mainTitle": "[H1] ...",
+          "mainIntro": "[H2] ...\\n\\n[H3] ...\\n\\n[H3] ...",
+          "metaTitle": "...",
+          "metaKeywords": "...",
+          "metaDescription": "...",
+          "suitedTitle": "[H2] ...",
+          "suitedContent": "...",
+          "painPoints": ["...", "..."],
+          "solutionFeatures": ["...", "..."],
+          "categoryHeading": "[H1] ...",
+          "categoryIntro": "[H2] ...\\n\\n[H3] ...",
+          "faq1_q": "...",
+          "faq1_a": "...",
+          "faq2_q": "...",
+          "faq2_a": "...",
+          "schemaMarkup": "...",
+          "altText": "...",
+          "imageSuggestion": "..."
+        }
+      `;
+
+      try {
+        let responseJsonText = "";
+        
+        if (aiProvider === 'gemini') {
+          // Fetch from Google Gemini API
+          progress.style.width = "40%";
+          log.textContent = "Generative RAG: Querying Gemini-1.5-Flash...";
+          
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${aiKey}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: {
+                responseMimeType: "application/json"
+              }
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error?.message || "Gemini API error status " + response.status);
+          }
+
+          progress.style.width = "80%";
+          log.textContent = "Formatting content payloads...";
+          
+          const result = await response.json();
+          responseJsonText = result.candidates[0].content.parts[0].text;
+
+        } else {
+          // Fetch from OpenAI GPT
+          progress.style.width = "40%";
+          log.textContent = "Generative RAG: Querying OpenAI GPT-4o-mini...";
+
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${aiKey}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: "You are a structured B2B JSON provider. Respond ONLY with valid raw JSON." },
+                { role: "user", content: promptText }
+              ],
+              response_format: { type: "json_object" }
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error?.message || "OpenAI API error status " + response.status);
+          }
+
+          progress.style.width = "80%";
+          log.textContent = "Formatting content payloads...";
+
+          const result = await response.json();
+          responseJsonText = result.choices[0].message.content;
+        }
+
+        // Parse resulting payload
+        progress.style.width = "95%";
+        log.textContent = "Writing variables into PM Simulator sandbox...";
+
+        // Strip backticks if any
+        let cleanText = responseJsonText.replace(/```json|```/g, "").trim();
+        const parsedData = JSON.parse(cleanText);
+
+        // Map parsed keys back to state
+        const g = state.activeTask.generatedData;
+        g.mainTitle = parsedData.mainTitle || "[H1] Generated Document Title";
+        g.mainIntro = parsedData.mainIntro || "";
+        g.metaTitle = parsedData.metaTitle || "";
+        g.metaKeywords = parsedData.metaKeywords || "";
+        g.metaDescription = parsedData.metaDescription || "";
+        g.suitedTitle = parsedData.suitedTitle || "";
+        g.suitedContent = parsedData.suitedContent || "";
+        g.painPoints = parsedData.painPoints || [];
+        g.solutionFeatures = parsedData.solutionFeatures || [];
+        g.categoryHeading = parsedData.categoryHeading || "";
+        g.categoryIntro = parsedData.categoryIntro || "";
+        
+        g.faqs = [
+          { q: parsedData.faq1_q || "FAQ Question 1?", a: parsedData.faq1_a || "FAQ Answer 1." },
+          { q: parsedData.faq2_q || "FAQ Question 2?", a: parsedData.faq2_a || "FAQ Answer 2." }
+        ];
+
+        g.schemaMarkup = parsedData.schemaMarkup || "";
+        g.altText = parsedData.altText || "";
+        g.imageSuggestion = parsedData.imageSuggestion || "";
+
+        // Re-render UI
+        updateSolutionCheckboxSelection();
+        fillPMFormFields();
+        fillReviewFormFields();
+        renderWebPreview();
+
+        progress.style.width = "100%";
+        log.textContent = "Washed spec content package compiled!";
+
+        setTimeout(() => {
+          loader.classList.add('hidden');
+          document.getElementById('generatedOutput').classList.remove('hidden');
+          document.getElementById('generatedOutput').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          showNotification("Real-Time AI complete", `Content successfully washed & generated using Live ${aiProvider.toUpperCase()} model!`, "success");
+        }, 300);
+
+      } catch (err) {
+        console.error("AI Generation Error: ", err);
+        loader.classList.add('hidden');
+        showNotification("Generation Outage", `Failed querying API: ${err.message}`, "error");
+      }
+    }
+
+    // Prepopulate B2B English Copy Layout Pack (purely in English - fallback when no key)
     function generatePrepopulatedContent(docKey) {
       const type = document.getElementById('pageType').value;
       const fileData = difyFiles[docKey];
@@ -2059,7 +2554,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       // Push draft to master Approved queue to simulate page-by-page review indexing
       const currentTaskCopy = JSON.parse(JSON.stringify(state.activeTask));
       state.approvedPagesList.push(currentTaskCopy);
-      renderHandoffTaskBoard();
+      repopulateHandoffSelector();
 
       showNotification("Task Submitted", "B2B copy transferred to Executive Approval. Connection state verified.", "success");
       switchRole('review');
@@ -2175,7 +2670,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         if (g.suitedSolutions && g.suitedSolutions.length > 0) {
           g.suitedSolutions.forEach(sol => {
             solutionsHtml += `
-              <div class="p-4 bg-emerald-50/80 border-l-4 border-senor-primary rounded-r-lg space-y-1 mt-2">
+              <div class="p-4 bg-emerald-50/80 border-l-4 border-senor-primary rounded-r-lg space-y-1 mt-2 font-sans">
                 <p class="text-xs font-bold text-senor-dark flex items-center gap-1.5">
                   <i class="fa-solid fa-square-check text-senor-primary"></i> Target Solution: ${sol.name}
                 </p>
@@ -2191,7 +2686,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         }
 
         innerHtml = `
-          <div class="space-y-4 text-slate-900">
+          <div class="space-y-4 text-slate-900 font-sans">
             <span class="text-[9px] bg-senor-primary text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">PRODUCT PORTFOLIO</span>
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
             
@@ -2220,7 +2715,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         let featureList = g.solutionFeatures ? g.solutionFeatures.map(f => `<li class="flex items-start gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i> <span>${f}</span></li>`).join('') : "";
 
         innerHtml = `
-          <div class="space-y-4 text-slate-900">
+          <div class="space-y-4 text-slate-900 font-sans">
             <span class="text-[9px] bg-indigo-900 text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">ENTERPRISE SOLUTION</span>
             <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
             <p class="text-xs leading-relaxed text-slate-600">${g.mainIntro.replace('[H2]', '').replace('[H3]', '<br/><br/>').replace(/\[H3\]/g, '<br/><br/>')}</p>
@@ -2238,10 +2733,10 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           </div>
         `;
       } 
-      // 3. CATEGORY VIEW
+      // 3. CATEGORY VIEW (Purely title and intro, no FAQs, no grids)
       else if (type === 'category') {
         innerHtml = `
-          <div class="space-y-4 text-slate-900">
+          <div class="space-y-4 text-slate-900 font-sans">
             <span class="text-[9px] bg-emerald-900 text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">PRODUCT CATEGORY</span>
             
             <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl mt-2 space-y-2">
@@ -2259,7 +2754,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       let faqHTML = "";
       if (type !== 'category') {
         faqHTML = `
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-150 mt-4 space-y-3 text-xs text-slate-900">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-150 mt-4 space-y-3 text-xs text-slate-900 font-sans">
             <p class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2 font-bold">
               <i class="fa-solid fa-circle-question text-senor-primary"></i> FAQ / AI Answer Optimization Index
             </p>
@@ -2319,10 +2814,10 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       // Log historical approval
       logRevisionHistory("Executive Sign-off / 核准上線", "Approved and committed to handoff layout dashboard.");
 
-      renderHandoffTaskBoard();
+      repopulateHandoffSelector();
 
-      // Load final approved item to handoff screen index
-      enterDesignerWorkbench(state.approvedPagesList.length - 1);
+      // Load final approved item to handoff screen
+      loadHandoffData(state.approvedPagesList.length - 1);
 
       showNotification("approved & delivered", "Content locked and delivered to handoff platform.", "success");
       
@@ -2332,169 +2827,38 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       switchRole('handoff');
     }
 
-    // DESIGNER: Render list of approved pending files (待處理的檔案列表)
-    function renderHandoffTaskBoard() {
-      const taskBoard = document.getElementById('handoff-task-board');
-      if (!taskBoard) return;
-      taskBoard.innerHTML = "";
-
-      const pendingList = state.approvedPagesList.filter(p => p.status !== "Completed");
-      
-      if (pendingList.length === 0) {
-        taskBoard.innerHTML = `
-          <div class="col-span-2 bg-slate-950 p-6 rounded-xl border border-slate-800 text-center text-slate-500">
-            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-700"></i>
-            <p class="text-xs">No pending approved pages. All sitemap nodes are successfully deployed!</p>
-          </div>
-        `;
-        document.getElementById('handoff-pending-count').textContent = 0;
-        return;
-      }
-
-      document.getElementById('handoff-pending-count').textContent = pendingList.length;
-
-      // Render each approved sitemap node page-by-page (一頁一頁待處理列表)
-      state.approvedPagesList.forEach((task, index) => {
-        // Skip already completed ones from the visual board if desired, but we display all status for debugging
-        const isCompleted = task.status === "Completed";
-        const badgeColor = isCompleted ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30";
-        const btnText = isCompleted ? "Review Live Layout" : "Enter Workbench / 進入製作工作台";
-        const btnColor = isCompleted ? "bg-slate-800 hover:bg-slate-700" : "bg-senor-primary hover:bg-senor-light text-white";
-
-        const card = document.createElement('div');
-        card.className = "bg-slate-950 border border-slate-850 rounded-xl p-4 space-y-3 hover:border-senor-light transition-all";
-        card.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <span class="text-[9px] px-2 py-0.5 rounded-full border ${badgeColor} font-mono font-bold uppercase">${task.pageType}</span>
-              <h4 class="text-xs font-bold text-white mt-1.5">${task.projectName}</h4>
-            </div>
-            <span class="text-[10px] text-slate-500 font-mono">#page-${index}</span>
-          </div>
-          <div class="space-y-1 text-[11px] text-slate-400">
-            <p><span class="text-slate-500 font-semibold">Slug:</span> <span class="font-mono text-senor-light">/${task.pageName}/</span></p>
-            <p><span class="text-slate-500 font-semibold">Focus Key:</span> ${task.keywords ? task.keywords[0] : "General Spec"}</p>
-          </div>
-          <div class="pt-2 border-t border-slate-900 flex justify-between items-center">
-            <span class="text-[10px] text-slate-500">Status: <strong class="text-slate-300 font-semibold">${task.status}</strong></span>
-            <button onclick="enterDesignerWorkbench(${index})" class="${btnColor} px-3 py-1.5 rounded text-xs font-semibold transition">
-              ${btnText} <i class="fa-solid fa-chevron-right ml-1"></i>
-            </button>
-          </div>
-        `;
-        taskBoard.appendChild(card);
-      });
+    // Designer page switching logic (page by page review)
+    function switchHandoffPage() {
+      const selector = document.getElementById('handoffPageSelector');
+      const selectedIndex = parseInt(selector.value);
+      loadHandoffData(selectedIndex);
+      showNotification("Task Deployed", `Production package loaded successfully.`, "info");
     }
 
-    // Enter detailed workbench view for a specific task page (設計師進入每一個待處理頁面時)
-    function enterDesignerWorkbench(index) {
-      state.selectedHandoffIndex = index;
+    // Repopulate sitemap selector drop-down dynamically
+    function repopulateHandoffSelector() {
+      const selector = document.getElementById('handoffPageSelector');
+      if (!selector) return;
+      selector.innerHTML = "";
+      state.approvedPagesList.forEach((page, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        option.textContent = `${idx + 1}. [${page.pageType.toUpperCase()}] ${page.projectName}`;
+        selector.appendChild(option);
+      });
+      const handoffCount = document.getElementById('handoff-pending-count');
+      if (handoffCount) handoffCount.textContent = state.approvedPagesList.filter(p => p.status !== "Completed").length;
+    }
+
+    // Load static parameters to handoff workbench (ATOMIZED FOR DESIGNERS)
+    function loadHandoffData(index) {
+      if (state.approvedPagesList.length === 0) return;
       const targetPage = state.approvedPagesList[index];
-      if (!targetPage) return;
-
-      // Reveal workbench panel
-      document.getElementById('designer-workbench-container').classList.remove('hidden');
-      document.getElementById('designer-workbench-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-      // Load static data
-      document.getElementById('handoff-active-title').textContent = `${targetPage.projectName}`;
-      
-      // PM-Configured Production URL Address (PM已設定網址的欄位)
-      let finalDirectory = "/products/";
-      if (targetPage.pageType === 'solutions') {
-        finalDirectory = `/solutions/${targetPage.solutionSubfolder.trim().toLowerCase()}/`;
-      } else if (targetPage.pageType === 'category') {
-        finalDirectory = `/product-category/`;
-      }
-      const fullUrlValue = `https://www.senortech.com.au` + finalDirectory + targetPage.pageName + `/`;
-      document.getElementById('h-pm-target-url').value = fullUrlValue;
-      document.getElementById('liveUrlSubmitted').value = fullUrlValue;
-
-      // Render Boss-Approved Layout Preview (老闆審核過的預覽畫面)
       const g = targetPage.generatedData;
-      document.getElementById('handoff-boss-preview-url').textContent = fullUrlValue;
+
+      const handoffProjName = document.getElementById('handoff-project-name');
+      if (handoffProjName) handoffProjName.textContent = targetPage.projectName;
       
-      let htmlOutput = "";
-      function cleanH(str, tag, replacement) {
-        if (!str) return "";
-        return str.replace(tag, replacement);
-      }
-
-      if (targetPage.pageType === 'products') {
-        let solutionsHtml = "";
-        if (g.suitedSolutions) {
-          g.suitedSolutions.forEach(sol => {
-            solutionsHtml += `
-              <div class="p-2 bg-emerald-50 border-l-2 border-senor-primary rounded-r mt-1">
-                <p class="font-bold text-[10px] text-senor-dark">Mapped Target Solution: ${sol.name}</p>
-                <p class="text-[9px] text-slate-600 leading-normal">${sol.brief}</p>
-              </div>
-            `;
-          });
-        }
-
-        htmlOutput = `
-          <div class="space-y-2 text-slate-900 font-sans">
-            <span class="text-[8px] bg-senor-primary text-white px-2 py-0.5 rounded font-extrabold uppercase">PRODUCT PORTFOLIO</span>
-            <h1 class="text-base font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
-            <p class="text-[11px] leading-relaxed text-slate-700">${cleanH(g.mainIntro, '[H2]', '').replace(/\[H3\]/g, '').replace(/\n/g, '<br/>')}</p>
-            <div class="pt-1">
-              <span class="font-bold text-[10px] uppercase text-slate-800">${cleanH(g.suitedTitle, '[H2]', '')}</span>
-              ${solutionsHtml}
-            </div>
-          </div>
-        `;
-      } else if (targetPage.pageType === 'solutions') {
-        let painList = g.painPoints ? g.painPoints.map(p => `<li class="flex items-start gap-1"><i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0"></i> <span>${p}</span></li>`).join('') : "";
-        let featureList = g.solutionFeatures ? g.solutionFeatures.map(f => `<li class="flex items-start gap-1"><i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i> <span>${f}</span></li>`).join('') : "";
-
-        htmlOutput = `
-          <div class="space-y-2 text-slate-900 font-sans">
-            <span class="text-[8px] bg-indigo-900 text-white px-2 py-0.5 rounded font-extrabold uppercase">ENTERPRISE SOLUTION</span>
-            <h1 class="text-base font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
-            <p class="text-[11px] leading-relaxed text-slate-700">${g.mainIntro.replace('[H2]', '').replace(/\[H3\]/g, '')}</p>
-            <div class="grid grid-cols-2 gap-2 text-[10px] mt-2">
-              <div class="p-2 bg-rose-50 border border-rose-100 rounded">
-                <span class="font-bold text-rose-950 block mb-1">Hazards</span>
-                <ul class="space-y-1 text-slate-600 leading-normal">${painList}</ul>
-              </div>
-              <div class="p-2 bg-emerald-50 border border-emerald-100 rounded">
-                <span class="font-bold text-emerald-950 block mb-1">Measures</span>
-                <ul class="space-y-1 text-slate-600 leading-normal">${featureList}</ul>
-              </div>
-            </div>
-          </div>
-        `;
-      } else if (targetPage.pageType === 'category') {
-        htmlOutput = `
-          <div class="space-y-2 text-slate-900 font-sans">
-            <span class="text-[8px] bg-emerald-900 text-white px-2 py-0.5 rounded font-extrabold uppercase">PRODUCT CATEGORY</span>
-            <div class="bg-slate-50 border border-slate-100 p-3 rounded mt-1">
-              <h2 class="text-xs font-extrabold text-slate-900 flex items-center gap-1">
-                <i class="fa-solid fa-boxes-stacked text-senor-primary"></i>
-                ${cleanH(g.categoryHeading, '[H1]', '')}
-              </h2>
-              <p class="text-[10px] leading-relaxed text-slate-600 mt-1">${g.categoryIntro}</p>
-            </div>
-          </div>
-        `;
-      }
-
-      // FAQ segment rendering inside approved preview box
-      if (targetPage.pageType !== 'category') {
-        htmlOutput += `
-          <div class="bg-slate-50 p-3 rounded border border-slate-150 mt-2 space-y-1 text-[10px] text-slate-900 font-sans">
-            <p class="font-bold text-slate-800 flex items-center gap-1"><i class="fa-solid fa-circle-question text-senor-primary"></i> Approved FAQ</p>
-            <div class="border-t border-slate-200/60 pt-1 space-y-1 text-slate-700">
-              <p><strong>Q: ${g.faqs && g.faqs[0] ? g.faqs[0].q : ""}</strong></p>
-              <p>A: ${g.faqs && g.faqs[0] ? g.faqs[0].a : ""}</p>
-            </div>
-          </div>
-        `;
-      }
-
-      document.getElementById('handoff-boss-preview-content').innerHTML = htmlOutput;
-
       // Populate separate Atom fields for Metadata
       document.getElementById('h-meta-title').value = g.metaTitle || "N/A";
       document.getElementById('h-meta-desc').value = g.metaDescription || "N/A";
@@ -2504,7 +2868,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       document.getElementById('h-block-h1').value = g.mainTitle ? g.mainTitle.replace('[H1] ', '') : "N/A";
       document.getElementById('h-block-body').value = g.mainIntro || "N/A";
 
-      // Toggle optional fields
+      // Hide or show Gutenberg Solutions block vs Solutions block
       const suitedWrapper = document.getElementById('h-block-suited-wrapper');
       const painWrapper = document.getElementById('h-block-pain-wrapper');
       const faqWrapper = document.getElementById('h-block-faq-wrapper');
@@ -2514,7 +2878,8 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         if (painWrapper) painWrapper.classList.add('hidden');
         if (faqWrapper) faqWrapper.classList.remove('hidden');
 
-        document.getElementById('h-suited-title').value = g.suitedTitle ? g.suitedTitle.replace('[H2] ', '') : "N/A";
+        const suitedTitleEl = document.getElementById('h-suited-title');
+        if (suitedTitleEl) suitedTitleEl.value = g.suitedTitle ? g.suitedTitle.replace('[H2] ', '') : "N/A";
         
         let solutionsHtml = "";
         if (g.suitedSolutions) {
@@ -2530,15 +2895,18 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
             `;
           });
         }
-        document.getElementById('h-suited-items-list').innerHTML = solutionsHtml;
+        const suitedItemsList = document.getElementById('h-suited-items-list');
+        if (suitedItemsList) suitedItemsList.innerHTML = solutionsHtml;
 
       } else if (targetPage.pageType === 'solutions') {
         if (suitedWrapper) suitedWrapper.classList.add('hidden');
         if (painWrapper) painWrapper.classList.remove('hidden');
         if (faqWrapper) faqWrapper.classList.remove('hidden');
 
-        document.getElementById('h-painpoints').value = g.painPoints ? g.painPoints.join('\n') : "N/A";
-        document.getElementById('h-features').value = g.solutionFeatures ? g.solutionFeatures.join('\n') : "N/A";
+        const hpain = document.getElementById('h-painpoints');
+        if (hpain) hpain.value = g.painPoints ? g.painPoints.join('\n') : "N/A";
+        const hfeat = document.getElementById('h-features');
+        if (hfeat) hfeat.value = g.solutionFeatures ? g.solutionFeatures.join('\n') : "N/A";
 
       } else if (targetPage.pageType === 'category') {
         if (suitedWrapper) suitedWrapper.classList.add('hidden');
@@ -2549,25 +2917,35 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       // Populate FAQ Fields independently
       if (targetPage.pageType !== 'category' && g.faqs) {
         if (g.faqs[0]) {
-          document.getElementById('h-faq1-q').value = g.faqs[0].q;
-          document.getElementById('h-faq1-a').value = g.faqs[0].a;
+          const hfaq1q = document.getElementById('h-faq1-q');
+          if (hfaq1q) hfaq1q.value = g.faqs[0].q;
+          const hfaq1a = document.getElementById('h-faq1-a');
+          if (hfaq1a) hfaq1a.value = g.faqs[0].a;
         }
         if (g.faqs[1]) {
-          document.getElementById('h-faq2-q').value = g.faqs[1].q;
-          document.getElementById('h-faq2-a').value = g.faqs[1].a;
+          const hfaq2q = document.getElementById('h-faq2-q');
+          if (hfaq2q) hfaq2q.value = g.faqs[1].q;
+          const hfaq2a = document.getElementById('h-faq2-a');
+          if (hfaq2a) hfaq2a.value = g.faqs[1].a;
         }
       }
 
-      document.getElementById('handoff-schema').value = g.schemaMarkup || "";
-      document.getElementById('handoff-alt').textContent = g.altText || "";
-      document.getElementById('handoff-suggestion').textContent = g.imageSuggestion || "";
+      const hschema = document.getElementById('handoff-schema');
+      if (hschema) hschema.value = g.schemaMarkup || "";
+      const halt = document.getElementById('handoff-alt');
+      if (halt) halt.textContent = g.altText || "";
+      const hsugg = document.getElementById('handoff-suggestion');
+      if (hsugg) hsugg.textContent = g.imageSuggestion || "";
 
-      showNotification("Desktop Configured", `Washed sitemap spec loaded for: ${targetPage.projectName}`, "success");
-    }
-
-    function exitDesignerWorkbench() {
-      document.getElementById('designer-workbench-container').classList.add('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Update launch submission target URL
+      let finalDirectory = "/products/";
+      if (targetPage.pageType === 'solutions') {
+        finalDirectory = `/solutions/${targetPage.solutionSubfolder.trim().toLowerCase()}/`;
+      } else if (targetPage.pageType === 'category') {
+        finalDirectory = `/product-category/`;
+      }
+      const liveUrlSub = document.getElementById('liveUrlSubmitted');
+      if (liveUrlSub) liveUrlSub.value = `https://www.senortech.com.au` + finalDirectory + targetPage.pageName + `/`;
     }
 
     // Designer Atomized Clipboard Copy Utilities
@@ -2578,6 +2956,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       showNotification("Copied Field", "Content block successfully written to system clipboard.", "success");
     }
 
+    // Dynamic FAQ clipboard bundler
     function copyFAQBlock(pairIndex) {
       const q = document.getElementById(`h-faq${pairIndex}-q`).value;
       const a = document.getElementById(`h-faq${pairIndex}-a`).value;
@@ -2606,12 +2985,13 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
 
     // Markdown Handout Downloader for external AI or backups
     function downloadMarkdownPackage() {
-      const index = state.selectedHandoffIndex;
-      const page = state.approvedPagesList[index];
-      if (!page) {
+      const selector = document.getElementById('handoffPageSelector');
+      if (!selector || selector.value === "") {
         showNotification("Export Error", "No approved deployment node selected.", "error");
         return;
       }
+      const selectedIndex = parseInt(selector.value);
+      const page = state.approvedPagesList[selectedIndex];
       const g = page.generatedData;
 
       let md = `# SEO/AEO Handoff Package: ${page.projectName}\n\n`;
@@ -2679,10 +3059,9 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
 
     // Deployed state callback
     function submitHandoffCompleted() {
-      const index = state.selectedHandoffIndex;
-      const targetPage = state.approvedPagesList[index];
-      if (!targetPage) return;
-
+      const selector = document.getElementById('handoffPageSelector');
+      const selectedIndex = parseInt(selector.value);
+      
       const liveUrl = document.getElementById('liveUrlSubmitted').value;
       if (!liveUrl.startsWith('https://www.senortech.com.au')) {
         showNotification("Domain mismatch", "Verification Error: URL must point to production target domain 'https://www.senortech.com.au' without any duplicate '/au' folder.", "error");
@@ -2690,14 +3069,13 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       }
 
       // Mark selected index as completed (page-by-page completions)
-      state.approvedPagesList[index].status = "Completed";
+      state.approvedPagesList[selectedIndex].status = "Completed";
       
       state.publishedCount++;
       state.submittedToDesign--;
 
       document.getElementById('stat-handoff').textContent = state.submittedToDesign;
       document.getElementById('stat-published').textContent = state.publishedCount;
-      
       const handoffPub = document.getElementById('handoff-published-count');
       if (handoffPub) handoffPub.textContent = parseInt(handoffPub.textContent) + 1;
 
@@ -2710,11 +3088,9 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       showNotification("Launch Registered", `Deployed live on sitemap index at:\n${liveUrl}`, "success");
       
       // Update database status if connected
-      savePublishedToSupabase(targetPage, liveUrl);
+      savePublishedToSupabase(state.approvedPagesList[selectedIndex], liveUrl);
 
-      // Reset and go back to list
-      exitDesignerWorkbench();
-      renderHandoffTaskBoard();
+      repopulateHandoffSelector();
       switchRole('executive');
     }
 
@@ -2736,7 +3112,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       
       const newLog = {
         timestamp: formatTime,
-        author: state.approver || "PM Workspace Developer",
+        author: state.currentUser || "PM Workspace Operator",
         projectName: state.activeTask.projectName,
         type: typeStr,
         slug: state.activeTask.pageName,
@@ -2765,7 +3141,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
 
       state.historyLog.forEach((log, index) => {
         body.innerHTML += `
-          <tr class="hover:bg-slate-850 transition">
+          <tr class="hover:bg-slate-850 transition text-xs">
             <td class="p-3 font-mono font-bold text-teal-400">${log.timestamp}</td>
             <td class="p-3 font-semibold text-slate-300">${log.author}</td>
             <td class="p-3 font-semibold text-white">
@@ -2778,11 +3154,11 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
               </span>
             </td>
             <td class="p-3 text-slate-400 max-w-[240px] truncate" title="${log.summary}">${log.summary}</td>
-            <td class="p-3 text-right">
-              <button onclick="viewHistoryIndex(${index})" class="bg-slate-800 hover:bg-slate-700 text-white text-[11px] px-2 py-1 rounded transition mr-1 font-bold">
+            <td class="p-3 text-right space-x-1">
+              <button onclick="viewHistoryIndex(${index})" class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] px-2.5 py-1.5 rounded-lg transition font-bold">
                 <i class="fa-solid fa-eye"></i> 查看 / View
               </button>
-              <button onclick="reEditHistoryIndex(${index})" class="bg-teal-700 hover:bg-teal-600 text-white text-[11px] px-2 py-1 rounded transition font-bold">
+              <button onclick="reEditHistoryIndex(${index})" class="bg-teal-700 hover:bg-teal-600 text-white text-[10px] px-2.5 py-1.5 rounded-lg transition font-bold">
                 <i class="fa-solid fa-pen-to-square"></i> 重新編輯 / Re-edit
               </button>
             </td>
@@ -2819,7 +3195,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       if (!state.historyLog[index]) return;
       const log = state.historyLog[index];
       
-      const currentUser = state.approver || "PM Workspace Developer";
+      const currentUser = state.currentUser || "PM Workspace Operator";
       const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
       // Restore past payload
@@ -2849,6 +3225,11 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       if (show) {
         document.getElementById('config-db-url').value = localStorage.getItem('supabase_url') || "";
         document.getElementById('config-db-key').value = localStorage.getItem('supabase_key') || "";
+        
+        // AI tab keys
+        document.getElementById('config-ai-provider').value = localStorage.getItem('ai_provider') || "gemini";
+        document.getElementById('config-ai-key').value = localStorage.getItem('ai_key') || "";
+
         modal.classList.remove('hidden');
       } else {
         modal.classList.add('hidden');
@@ -2858,22 +3239,36 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
     function saveDatabaseConfig() {
       const url = document.getElementById('config-db-url').value.trim();
       const key = document.getElementById('config-db-key').value.trim();
+      
+      // AI Keys
+      const aiProvider = document.getElementById('config-ai-provider').value;
+      const aiKey = document.getElementById('config-ai-key').value.trim();
 
       if (url && key) {
         localStorage.setItem('supabase_url', url);
         localStorage.setItem('supabase_key', key);
-        toggleSupabaseModal(false);
-        initSupabase();
-      } else {
-        showNotification("Configuration Error", "Please provide both valid URL and Anon key.", "error");
       }
+
+      if (aiKey) {
+        localStorage.setItem('ai_provider', aiProvider);
+        localStorage.setItem('ai_key', aiKey);
+      }
+
+      toggleSupabaseModal(false);
+      initSupabase();
+      showNotification("Configuration Saved", "Cloud API integrations updated.", "success");
     }
 
     function clearSavedDatabaseKeys() {
       localStorage.removeItem('supabase_url');
       localStorage.removeItem('supabase_key');
+      localStorage.removeItem('ai_provider');
+      localStorage.removeItem('ai_key');
+
       document.getElementById('config-db-url').value = "";
       document.getElementById('config-db-key').value = "";
+      document.getElementById('config-ai-key').value = "";
+
       toggleSupabaseModal(false);
       initSupabase();
       showNotification("Keys Cleared", "Local storage cleared. Sandbox demo mode loaded.", "info");
@@ -2884,7 +3279,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       syncPMToDraft();
       const task = state.activeTask;
 
-      logRevisionHistory("Draft Saved / 草稿儲存", "Content schema draft backup committed to active session.");
+      logRevisionHistory("Draft Saved / 草稿儲存", "Content sitemap draft backup committed to active session.");
 
       if (supabaseClient) {
         try {
@@ -2895,7 +3290,6 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
               project_name: task.projectName,
               page_type: task.pageType,
               slug_name: task.pageName,
-              keywords: task.keywords,
               draft_payload: task.generatedData,
               last_updated: new Date()
             });
@@ -2950,8 +3344,135 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       }
     }
 
+    // Role, Account & Password management logic (Local Sandbox CRUD & LocalStorage sync)
+    function renderExecutiveAccountManager() {
+      const tbody = document.getElementById('manage-accounts-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = "";
+
+      state.accounts.forEach((acc, index) => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-850/80 transition">
+            <td class="p-3 font-mono font-bold text-slate-100">${acc.username}</td>
+            <td class="p-3 font-mono text-slate-400">•••••••• (Clear: ${acc.pass})</td>
+            <td class="p-3">
+              <span class="bg-senor-primary/20 text-senor-light border border-senor-primary/40 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">
+                ${acc.role.toUpperCase()}
+              </span>
+            </td>
+            <td class="p-3 text-right space-x-1">
+              <button onclick="editAccountRow('${acc.id}')" class="bg-slate-800 hover:bg-slate-700 text-teal-300 text-[10px] px-2.5 py-1.5 rounded-lg transition">
+                <i class="fa-solid fa-user-pen"></i> Edit
+              </button>
+              <button onclick="deleteAccountRow('${acc.id}')" class="bg-slate-800 hover:bg-rose-900/50 text-rose-400 text-[10px] px-2.5 py-1.5 rounded-lg transition">
+                <i class="fa-solid fa-user-xmark"></i> Delete
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function editAccountRow(accId) {
+      const matched = state.accounts.find(a => a.id === accId);
+      if (matched) {
+        document.getElementById('manage-user-id').value = matched.id;
+        document.getElementById('manage-username').value = matched.username;
+        document.getElementById('manage-password').value = matched.pass;
+        document.getElementById('manage-role').value = matched.role;
+        showNotification("Account Profile Loaded", `Loaded credentials for [${matched.username}] into config form.`, "info");
+      }
+    }
+
+    function saveAccountProfile() {
+      const idVal = document.getElementById('manage-user-id').value;
+      const usernameVal = document.getElementById('manage-username').value.trim().toLowerCase();
+      const passwordVal = document.getElementById('manage-password').value.trim();
+      const roleVal = document.getElementById('manage-role').value;
+
+      if (!usernameVal || !passwordVal) {
+        showNotification("Verification Error", "Username and password passcode credentials are strictly required.", "error");
+        return;
+      }
+
+      // Format role label string
+      let roleLabel = "";
+      if (roleVal === "boss") roleLabel = "Boss & Assistant / 決策高層與特助";
+      else if (roleVal === "pm") roleLabel = "Product Manager (PM) / 專案經理";
+      else roleLabel = "Web Designer / 網頁排版工程師";
+
+      if (idVal) {
+        // Edit flow
+        const idx = state.accounts.findIndex(a => a.id === idVal);
+        if (idx !== -1) {
+          state.accounts[idx].username = usernameVal;
+          state.accounts[idx].pass = passwordVal;
+          state.accounts[idx].role = roleVal;
+          state.accounts[idx].label = roleLabel;
+          showNotification("Profile Updated", `Security account details for [${usernameVal}] committed.`, "success");
+        }
+      } else {
+        // Create flow
+        // Check for duplicate username
+        const duplicate = state.accounts.find(a => a.username === usernameVal);
+        if (duplicate) {
+          showNotification("Duplicate Identifier", `A user profile with username [${usernameVal}] already exists.`, "error");
+          return;
+        }
+
+        const newAcc = {
+          id: "acc-" + Date.now(),
+          username: usernameVal,
+          pass: passwordVal,
+          role: roleVal,
+          label: roleLabel
+        };
+        state.accounts.push(newAcc);
+        showNotification("Security Account Created", `New operational clearance profile [${usernameVal}] generated.`, "success");
+      }
+
+      // Sync and render
+      localStorage.setItem('auth_accounts', JSON.stringify(state.accounts));
+      resetAccountManagerForm();
+      renderExecutiveAccountManager();
+    }
+
+    function deleteAccountRow(accId) {
+      const matched = state.accounts.find(a => a.id === accId);
+      if (!matched) return;
+
+      // Anti-self deletion block logic
+      if (matched.username === state.currentUser) {
+        showNotification("Access Security Alert", "Clearance breach: Self-deletion of currently logged-in account is strictly forbidden.", "error");
+        return;
+      }
+
+      // Keep at least one boss profile
+      if (matched.role === 'boss') {
+        const totalBosses = state.accounts.filter(a => a.role === 'boss').length;
+        if (totalBosses <= 1) {
+          showNotification("Security Enforcement", "System requires at least 1 persistent active Boss administrator account.", "error");
+          return;
+        }
+      }
+
+      state.accounts = state.accounts.filter(a => a.id !== accId);
+      localStorage.setItem('auth_accounts', JSON.stringify(state.accounts));
+      showNotification("Account Revoked", `User credentials for [${matched.username}] have been deleted permanently.`, "success");
+      renderExecutiveAccountManager();
+    }
+
+    function resetAccountManagerForm() {
+      document.getElementById('manage-user-id').value = "";
+      document.getElementById('manage-username').value = "";
+      document.getElementById('manage-password').value = "";
+      document.getElementById('manage-role').value = "pm";
+    }
+
     // Window Onload Trigger
     window.onload = function() {
+      initAccounts();
+      checkExistingAuth();
       initSupabase();
       updateUrl();
       updateKeywordCount();
@@ -2960,7 +3481,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       updateSolutionCheckboxSelection();
       fillPMFormFields();
       fillReviewFormFields();
-      renderHandoffTaskBoard();
+      repopulateHandoffSelector();
       renderWebPreview();
     }
   </script>
