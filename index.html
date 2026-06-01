@@ -1,0 +1,2968 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GEO/AEO/SEO B2B Enterprise Content Engine - Senor Tech Australia</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- Google Font Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            senor: {
+              dark: '#002626',     // Extremely Deep Forest Teal
+              primary: '#005A5B',  // Official Brand Teal
+              light: '#008B8B',    // Accent Bright Teal
+              gold: '#D4AF37',     // Secondary Premium Highlight
+              slate: '#1E293B',
+              coral: '#E06A55'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * { scroll-behavior: smooth; }
+    .tab-active { background: #005A5B; color: white; box-shadow: 0 8px 20px rgba(0, 90, 91, 0.35); }
+    .tab-idle { color: #94a3b8; }
+    .status-card { transition: transform .18s ease, border-color .18s ease; }
+    .status-card:hover { transform: translateY(-2px); border-color: #008B8B; }
+    .soft-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+    .soft-scrollbar::-webkit-scrollbar-thumb { background: #005A5B; border-radius: 99px; }
+    .soft-scrollbar::-webkit-scrollbar-track { background: #080f14; }
+    .glow-border:focus { border-color: #008B8B; box-shadow: 0 0 10px rgba(0, 139, 139, 0.3); }
+    /* Boss Presbyopia scale styles */
+    .boss-large-text p, .boss-large-text li, .boss-large-text td { font-size: 110% !important; line-height: 1.7 !important; }
+    .boss-large-text h1 { font-size: 145% !important; }
+    .boss-large-text h2 { font-size: 125% !important; }
+    .boss-large-text h3 { font-size: 115% !important; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col soft-scrollbar">
+
+  <script>
+    // Solutions database mapping (Supports dynamic mapping without hardcoding subfolders)
+    const solutionsDatabase = [
+      { 
+        id: "kds", 
+        name: "Hospitality -> Kitchen Management (KDS)", 
+        subfolder: "hospitality",
+        url: "https://www.senortech.com.au/solutions/hospitality/kitchen-management-kds/", 
+        brief: "Engineered for high-temp, humid, grease-heavy environments. Provides auto-routing, seamless orders, and IP66 extreme moisture defense." 
+      },
+      { 
+        id: "retail", 
+        name: "Retail -> Boutique & Specialized Retail", 
+        subfolder: "retail",
+        url: "https://www.senortech.com.au/solutions/retail/boutique-specialized/", 
+        brief: "Ultra-slim, premium all-in-one terminal frameworks matching boutique aesthetics and busy high-transaction checkouts." 
+      },
+      { 
+        id: "logistics", 
+        name: "Industrial & Logistics -> Factory Automation", 
+        subfolder: "industrial-logistics",
+        url: "https://www.senortech.com.au/solutions/industrial-logistics/factory-automation/", 
+        brief: "Rugged fanless stainless panels supporting wide temperatures (-20°C to 60°C) and certified IP66/IP69K complete protection." 
+      }
+    ];
+
+    // Simulated Dify Knowledge Store for RAG-based cleaning (prevents specifications hallucination)
+    const difyFiles = {
+      "hecto-pos-a516": {
+        fileName: "Hecto-POS-A516_Datasheet_Australia.pdf",
+        specs: {
+          cpu: "Intel® Celeron® Processor J6412 (Up to 2.60 GHz)",
+          waterproof: "IP65 Rated Waterproof Front Bezel Structural Design",
+          chassis: "Heavy-Duty Die-Casting Aluminum Alloy Fanless Frame",
+          io: "Rich Australian Standard I/O: 4 x COM, 6 x USB, 1 x Powered Cash Drawer Port",
+          usecase: "Greasy Kitchens, Seafood processing hubs, wet bars and humid industrial bays"
+        }
+      },
+      "kds21-monitor": {
+        fileName: "KDS-21_Kitchen_Display_Spec.docx",
+        specs: {
+          cpu: "Intel Core i3/i5 Commercial Processor",
+          waterproof: "IP66 Entire Unit Stainless Waterproofing (SUS304)",
+          chassis: "Stainless Steel Corrosion-Resistant Shell",
+          io: "Dual LAN, High-Bright Auto-Dimming LCD Panels",
+          usecase: "High-humidity food factories and commercial quick-service kitchens"
+        }
+      }
+    };
+
+    // Keyword database for dynamic recommendation based on URL/Slug patterns
+    const keywordRecommendations = {
+      "hecto": ["IP65 Rated POS Terminal", "Kitchen Proof POS System", "High-Temp Kitchen POS"],
+      "pos": ["B2B POS Systems Australia", "All-In-One Commercial POS", "Retail Touch Screen Terminals"],
+      "kds": ["Waterproof Kitchen Monitor", "Kitchen Display Screen Hardware", "Restaurant KDS Terminals"],
+      "automation": ["Fanless Industrial Panel PC", "IP66 Heavy-Duty Touch PC", "Waterproof Stainless Computer"],
+      "default": ["Premium Commercial POS Hardware", "Waterproof Industrial Touch Systems", "Australia B2B POS Supplier"]
+    };
+
+    // System reactive state
+    let state = {
+      approvalsPending: 5,
+      revisionCount: 2,
+      submittedToDesign: 8,
+      publishedCount: 48,
+      keywordsCount: 114,
+      isReviewEditorCollapsed: true, // Default to collapsed for Boss's eyesight optimization
+      bossLargeTextMode: true,       // Default to true to assist presbyopic viewing
+      selectedHandoffIndex: 0,       // Current active handoff details page
+      
+      // Approved pages database for designer review (page-by-page)
+      approvedPagesList: [
+        {
+          id: "page-0",
+          pageType: "products",
+          pageName: "hecto-pos-a516",
+          projectName: "Hecto POS A516 AI-Integrated Kitchen System",
+          keywords: ["IP65 Rated POS Terminal", "Kitchen Proof POS System", "High-Temp Kitchen POS"],
+          status: "Approved",
+          generatedData: {
+            mainTitle: "[H1] Hecto POS A516: Heavy-Duty IP65 Fanless Touch System for High-Temp Kitchens",
+            mainIntro: "[H2] Eliminating Thermal and Grease Failures in Busy Australian Commercial Kitchens\n\n[H3] Rugged Engineering for Constant Thermal Stress\nIn busy, high-temperature Australian commercial kitchens, equipment failures are incredibly costly. The Senor Hecto POS A516 is specifically designed with a premium IP65 rated waterproof front bezel and a robust fanless die-casting aluminum alloy chassis to ensure continuous operation under extreme thermal stress.\n\n[H3] Zero Fan-Related Ingress Hazards\nBy removing vulnerable cooling fans, grease-laden air cannot build up inside. This dramatically lowers the failure rates compared to consumer-grade retail terminals.",
+            metaTitle: "Senor Hecto POS A516 | Heavy-Duty IP65 Waterproof POS Hardware",
+            metaKeywords: "IP65 Rated POS Terminal, Kitchen Proof POS System, High-Temp Kitchen POS",
+            metaDescription: "Meet the Senor Hecto POS A516: Featuring an IP65 Front Bezel, Fanless Aluminum Chassis, and high heat resilience to protect your Australian commercial kitchen POS from grease, oil and fluid damages.",
+            suitedTitle: "[H2] Recommended Compatible Enterprise Solutions:",
+            suitedSolutions: [solutionsDatabase[0]],
+            schemaMarkup: `{\n  "@context": "https://schema.org",\n  "@type": "Product",\n  "name": "Hecto POS A516",\n  "image": "https://www.senortech.com.au/images/hecto-pos.jpg",\n  "description": "Premium industrial grade fanless POS system for hospitality.",\n  "brand": {\n    "@type": "Brand",\n    "name": "Senor Tech"\n  }\n}`,
+            altText: "Senor Hecto POS A516 fanless terminal operating flawlessly in a commercial kitchen with water splashes.",
+            imageSuggestion: "A hero photo of the Hecto POS A516 terminal placed on a stainless steel counter in a bustling, steam-filled kitchen showing chef placing orders with wet hands."
+          }
+        },
+        {
+          id: "page-1",
+          pageType: "solutions",
+          pageName: "kitchen-management-kds",
+          projectName: "KDS Kitchen Management Hospitality Solution",
+          keywords: ["Waterproof Kitchen Monitor", "Kitchen Display Screen Hardware", "Restaurant KDS Terminals"],
+          status: "Approved",
+          generatedData: {
+            mainTitle: "[H1] Commercial Kitchen Display Systems (KDS) for Extreme Hospitality Environments",
+            mainIntro: "[H2] Accelerating Ticket Fulfillment and Communication with Fanless Monitors\n\n[H3] Fully Waterproof Kitchen Display Screen Hardware Solutions\nOur KDS display framework provides kitchen automation that minimizes human error. Built with full SUS304 grade stainless steel and fanless cooling, this platform eliminates grease and dust accumulation inside the components.\n\n[H3] Complete Moisture Seals and Auto-Dimming LCDs\nEnsuring crystal-clear readability for chefs, the Waterproof Kitchen Monitor handles wet-hand touching and harsh hot steam without single-point responsive sensor failure.",
+            metaTitle: "B2B Hospitality Kitchen Display Systems (KDS) | Senor Tech",
+            metaKeywords: "Waterproof Kitchen Monitor, Kitchen Display Screen Hardware, Restaurant KDS Terminals",
+            metaDescription: "Streamline fast-casual dining orders with robust Kitchen Display Systems. Discover premium Waterproof Kitchen Monitors engineered for busy Australian commercial kitchens.",
+            painPoints: [
+              "Standard retail monitors crash constantly from hot grease and water splash.",
+              "Vulnerable internal fans accumulate sticky kitchen flour dust and catch fires."
+            ],
+            solutionFeatures: [
+              "Pure fanless high-efficiency thermodynamic casing that blocks grease elements completely.",
+              "Waterproof touchscreen responsive interface fully capable of parsing inputs from wet or gloved hands."
+            ],
+            faqTitle: "[H2] FAQ About Commercial Kitchen Displays",
+            faqs: [
+              { q: "Can we install alternative kitchen software on this machine?", a: "Yes, Senor KDS hardware is compatible with all leading Australian POS and KDS hospitality platforms." }
+            ],
+            schemaMarkup: `{\n  "@context": "https://schema.org",\n  "@type": "Service",\n  "name": "Kitchen Display Solution",\n  "provider": {\n    "@type": "LocalBusiness",\n    "name": "Senor Tech Australia"\n  }\n}`,
+            altText: "High durability KDS monitor standing robust behind a fast-casual cooking range.",
+            imageSuggestion: "A close-up of a rugged stainless-steel kitchen monitor showing current active lunch orders as steam rises from the grills below."
+          }
+        }
+      ],
+
+      // Historical Archive of all edits, saves, and versions
+      historyLog: [
+        {
+          timestamp: "2026-06-01 12:45:00",
+          author: "PM Mark",
+          projectName: "Hecto POS A516 AI-Integrated Kitchen System",
+          type: "Draft Saved / 草稿儲存",
+          slug: "hecto-pos-a516",
+          summary: "Initial Dify generated content with raw specs from Australia datasheet.",
+          payload: {
+            mainTitle: "[H1] Hecto POS A516: Heavy-Duty IP65 Fanless Touch System for High-Temp Kitchens",
+            metaTitle: "Senor Hecto POS A516 | Heavy-Duty IP65 Waterproof POS Hardware"
+          }
+        },
+        {
+          timestamp: "2026-06-01 14:10:00",
+          author: "Boss Assistant",
+          projectName: "KDS Kitchen Management Hospitality Solution",
+          type: "Verification Approved / 核准簽章",
+          slug: "kitchen-management-kds",
+          summary: "Added SUS304 steel chassis verification and completed KDS sitemap mapping.",
+          payload: {
+            mainTitle: "[H1] Commercial Kitchen Display Systems (KDS) for Extreme Hospitality Environments",
+            metaTitle: "B2B Hospitality Kitchen Display Systems (KDS) | Senor Tech"
+          }
+        }
+      ],
+
+      activeTask: {
+        id: "task-1",
+        pageType: "products", // products, solutions, category
+        pageName: "hecto-pos-a516",
+        solutionSubfolder: "hospitality", // Dynamic subfolder setting
+        projectName: "Hecto POS A516 AI-Integrated Kitchen System",
+        language: "Australian English / 澳式英文",
+        keywords: ["IP65 Rated POS Terminal", "Kitchen Proof POS System", "High-Temp Kitchen POS"],
+        tone: "Technical / 技術型",
+        approver: "Boss / 老闆",
+        difyConnected: true,
+        selectedDifyFile: "hecto-pos-a516",
+        targetWordCount: 500,
+        selectedSolutionIds: ["kds"], // Multi-select support for solutions mapping
+        
+        generatedData: {
+          mainTitle: "[H1] Hecto POS A516: Heavy-Duty IP65 Fanless Touch System for High-Temp Kitchens",
+          mainIntro: "[H2] Eliminating Thermal and Grease Failures in Busy Australian Commercial Kitchens\n\n[H3] Rugged Engineering for Constant Thermal Stress\nIn busy, high-temperature Australian commercial kitchens, equipment failures are incredibly costly. The Senor Hecto POS A516 is specifically designed with a premium IP65 rated waterproof front bezel and a robust fanless die-casting aluminum alloy chassis to ensure continuous operation under extreme thermal stress.\n\n[H3] Zero Fan-Related Ingress Hazards\nBy removing vulnerable cooling fans, grease-laden air cannot build up inside. This dramatically lowers the failure rates compared to consumer-grade retail terminals.",
+          
+          metaTitle: "Senor Hecto POS A516 | Heavy-Duty IP65 Waterproof POS Hardware",
+          metaKeywords: "IP65 Rated POS Terminal, Kitchen Proof POS System, High-Temp Kitchen POS",
+          metaDescription: "Meet the Senor Hecto POS A516: Featuring an IP65 Front Bezel, Fanless Aluminum Chassis, and high heat resilience to protect your Australian commercial kitchen POS from grease, oil and fluid damages.",
+
+          suitedTitle: "[H2] Recommended Compatible Enterprise Solutions:",
+          suitedSolutions: [solutionsDatabase[0]],
+          
+          painPoints: [
+            "Frequent system crashes caused by high kitchen humidity and cooking oils.",
+            "Receipt printing delays and kitchen display touchscreen failures during peak hours."
+          ],
+          solutionFeatures: [
+            "Complete IP66-level rugged housing to completely shield dust, oil and liquids.",
+            "Industrial-grade fanless motherboard ensures zero flour/dust buildup inside the chassis."
+          ],
+          
+          categoryHeading: "[H1] Next-Generation Hospitality & Retail Hardware Frameworks",
+          categoryIntro: "[H2] Commercial-Grade POS Terminals, Monitors and Kiosks for Australia\n\n[H3] Tailored for High Reliability across Commercial Landscapes\nExplore Senor Tech's masterfully engineered line of POS Systems, Touch Panels, and Kiosks customized for high reliability across Australia's commercial landscapes.",
+          
+          faqTitle: "[H2] Frequently Asked Questions About Kitchen POS Hardware",
+          faqs: [
+            { q: "Is the Hecto POS A516 completely grease-proof?", a: "Yes, the front bezel features an IP65 rated seamless design that prevents any grease, flour dust, or liquids from entering the motherboard compartment." },
+            { q: "Can we install alternative kitchen software on this machine?", a: "Absolutely. Senor POS hardware is platform-agnostic and fully compatible with all major Australian hospitality and cloud point-of-sale systems." }
+          ],
+          schemaMarkup: `{\n  "@context": "https://schema.org",\n  "@type": "Product",\n  "name": "Hecto POS A516",\n  "image": "https://www.senortech.com.au/images/hecto-pos.jpg",\n  "description": "Premium industrial grade fanless POS system for hospitality.",\n  "brand": {\n    "@type": "Brand",\n    "name": "Senor Tech"\n  }\n}`,
+          altText: "Senor Hecto POS A516 fanless terminal operating flawlessly in a commercial kitchen with water splashes.",
+          imageSuggestion: "A hero photo of the Hecto POS A516 terminal placed on a stainless steel counter in a bustling, steam-filled kitchen showing chef placing orders with wet hands."
+        }
+      }
+    };
+
+    // Supabase client instance holder
+    let supabaseClient = null;
+
+    // Check localStorage on load for saved keys
+    function initSupabase() {
+      const url = localStorage.getItem('supabase_url');
+      const key = localStorage.getItem('supabase_key');
+      const indicator = document.getElementById('supabase-status-indicator');
+      const text = document.getElementById('supabase-status-text');
+
+      if (url && key) {
+        try {
+          supabaseClient = supabase.createClient(url, key);
+          if (indicator) {
+            indicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+            text.innerHTML = `Supabase Connected (<span class="text-emerald-400 font-mono text-xs">ONLINE</span>)`;
+          }
+          showNotification("Supabase Ready", "Successfully connected to your custom Supabase instance.", "success");
+        } catch (err) {
+          console.error("Supabase Init Error: ", err);
+          if (indicator) {
+            indicator.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+            text.innerHTML = `Supabase Connection Failed (<span class="text-rose-400">ERROR</span>)`;
+          }
+        }
+      } else {
+        if (indicator) {
+          indicator.className = "w-2.5 h-2.5 rounded-full bg-amber-500";
+          text.innerHTML = `Sandbox Demo Mode (<span class="text-amber-400 font-bold">SANDBOX</span>)`;
+        }
+      }
+    }
+  </script>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 pointer-events-none flex flex-col gap-2"></div>
+
+  <!-- Real-time dynamic notification system instead of alert() -->
+  <script>
+    function showNotification(title, message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto transform transition-all duration-300 translate-y-5 opacity-0 flex items-start gap-3 p-4 rounded-xl shadow-2xl border min-w-[320px] max-w-[400px] ${
+        type === 'success' ? 'bg-teal-950 border-teal-500 text-teal-100' :
+        type === 'error' ? 'bg-rose-950 border-rose-600 text-rose-100' :
+        'bg-slate-900 border-slate-700 text-slate-100'
+      }`;
+      
+      const icon = type === 'success' ? 'fa-circle-check text-emerald-400' :
+                   type === 'error' ? 'fa-circle-xmark text-rose-400' : 'fa-circle-info text-sky-400';
+
+      toast.innerHTML = `
+        <span class="text-lg mt-0.5"><i class="fa-solid ${icon}"></i></span>
+        <div class="flex-1">
+          <p class="font-bold text-xs uppercase tracking-wide text-white">${title}</p>
+          <p class="text-[11px] text-slate-300 mt-1 leading-relaxed">${message}</p>
+        </div>
+        <button class="text-slate-400 hover:text-white transition" onclick="this.parentElement.remove()">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      `;
+
+      container.appendChild(toast);
+      
+      // Animate entry
+      setTimeout(() => {
+        toast.classList.remove('translate-y-5', 'opacity-0');
+      }, 50);
+
+      // Dismiss timer
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 5000);
+      }, 5000);
+    }
+  </script>
+
+  <script>
+    // Helper to format text with capitalized words
+    function capitalizeWords(str) {
+      return str.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Dynamic keyword recommendation and naming link
+    function executeNamingSynchronization() {
+      const pageNameInput = document.getElementById('pageName');
+      const pageTypeInput = document.getElementById('pageType');
+      if (!pageNameInput) return;
+
+      const slug = pageNameInput.value.trim().toLowerCase();
+      const pageType = pageTypeInput.value;
+
+      // 1. Dynamic Project Name generation linked to slug
+      let dynamicProjectName = "";
+      if (slug) {
+        let cleanName = capitalizeWords(slug);
+        if (pageType === 'products') {
+          dynamicProjectName = `${cleanName} AI-Integrated Kitchen System`;
+        } else if (pageType === 'solutions') {
+          dynamicProjectName = `${cleanName} Hospitality Solution`;
+        } else {
+          dynamicProjectName = `${cleanName} Global Category Group`;
+        }
+      } else {
+        dynamicProjectName = "Unnamed Senor Project";
+      }
+      
+      const projNameInput = document.getElementById('projectName');
+      if (projNameInput) {
+        projNameInput.value = dynamicProjectName;
+        state.activeTask.projectName = dynamicProjectName;
+      }
+
+      // 2. Dynamic long-tail keywords based on pattern match
+      let keywordsSelected = keywordRecommendations.default;
+      for (const [key, val] of Object.entries(keywordRecommendations)) {
+        if (slug.includes(key)) {
+          keywordsSelected = val;
+          break;
+        }
+      }
+
+      // Populate keywords inputs
+      const k1 = document.getElementById('kw1');
+      const k2 = document.getElementById('kw2');
+      const k3 = document.getElementById('kw3');
+      if (k1 && k2 && k3) {
+        k1.value = keywordsSelected[0];
+        k2.value = keywordsSelected[1];
+        k3.value = keywordsSelected[2];
+        state.activeTask.keywords = [keywordsSelected[0], keywordsSelected[1], keywordsSelected[2]];
+        updateKeywordCount();
+      }
+    }
+  </script>
+
+  <!-- Supabase Config Modal -->
+  <div id="supabase-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-database text-emerald-400"></i> Supabase Database Configuration
+        </h3>
+        <button onclick="toggleSupabaseModal(false)" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+      <p class="text-[11px] text-slate-400 leading-relaxed">
+        We do not hardcode your database credentials. Provide your project URL & API keys below to link directly with your cloud environment. Your credentials remain stored strictly in your browser's local sandbox storage.
+      </p>
+      <div class="space-y-3">
+        <label class="block">
+          <span class="text-xs text-slate-400 font-semibold">Supabase Reference URL</span>
+          <input id="config-db-url" placeholder="https://yourproject.supabase.co" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-slate-400 font-semibold">Supabase Anon Public API Key</span>
+          <input id="config-db-key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
+        </label>
+      </div>
+      <div class="flex gap-2 justify-end pt-2">
+        <button onclick="clearSavedDatabaseKeys()" class="bg-slate-800 hover:bg-slate-750 text-xs px-4 py-2 rounded-xl transition text-rose-400">
+          Clear Keys
+        </button>
+        <button onclick="saveDatabaseConfig()" class="bg-senor-primary hover:bg-senor-light text-white text-xs font-bold px-4 py-2 rounded-xl transition">
+          Save & Connect
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History View Detail Modal -->
+  <div id="history-view-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-2xl w-full mx-4 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-sky-400"></i> Historical Document Snapshot / 歷史快照檢視
+        </h3>
+        <button onclick="toggleHistoryViewModal(false)" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+      <div class="space-y-3 text-xs max-h-[60vh] overflow-y-auto soft-scrollbar pr-1">
+        <div>
+          <span class="text-slate-500 font-bold">Project Name:</span>
+          <span id="hist-modal-proj" class="text-slate-200 block mt-0.5 font-semibold"></span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <span class="text-slate-500 font-bold">Timestamp:</span>
+            <span id="hist-modal-time" class="text-slate-300 block font-mono"></span>
+          </div>
+          <div>
+            <span class="text-slate-500 font-bold">Operator:</span>
+            <span id="hist-modal-author" class="text-slate-300 block"></span>
+          </div>
+        </div>
+        <hr class="border-slate-800" />
+        <div>
+          <span class="text-slate-500 font-bold">META Title:</span>
+          <span id="hist-modal-meta-title" class="text-teal-400 block font-semibold mt-0.5"></span>
+        </div>
+        <div>
+          <span class="text-slate-500 font-bold">Main Title [H1]:</span>
+          <span id="hist-modal-main-title" class="text-white block font-bold text-sm mt-0.5"></span>
+        </div>
+        <div>
+          <span class="text-slate-500 font-bold">Main Body Content:</span>
+          <p id="hist-modal-main-intro" class="text-slate-300 bg-slate-950 p-3 rounded-lg mt-1 font-mono leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto soft-scrollbar"></p>
+        </div>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="toggleHistoryViewModal(false)" class="bg-slate-800 hover:bg-slate-750 text-white text-xs font-bold px-4 py-2 rounded-xl transition">
+          Close / 關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header / Nav (Bilingual with English priority to Boss) -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-col xl:flex-row justify-between items-center gap-3 shrink-0 sticky top-0 z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-teal-500/10 border border-senor-primary flex items-center justify-center animate-pulse">
+        <i class="fa-solid fa-brain text-senor-light"></i>
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-bold tracking-wide text-white">GEO/AEO/SEO B2B Enterprise Content Engine</h1>
+        <p class="text-[11px] text-slate-400">澳洲威強 Senor Tech Australia · Intelligent Content Architecture</p>
+      </div>
+    </div>
+
+    <!-- DB Connect & Role switcher panel -->
+    <div class="flex items-center gap-3 flex-wrap justify-center">
+      <!-- Database status indicators -->
+      <button onclick="toggleSupabaseModal(true)" class="flex items-center gap-2 bg-slate-950 hover:bg-slate-850 px-3 py-2 rounded-xl border border-slate-800 text-[10px] text-slate-400 transition">
+        <span id="supabase-status-indicator" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+        <span id="supabase-status-text">Supabase Config</span>
+        <i class="fa-solid fa-gear text-slate-500 hover:text-white"></i>
+      </button>
+
+      <!-- Role Switcher (English priority for Boss / Bilingual headers kept) -->
+      <div class="flex flex-wrap justify-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium gap-1">
+        <button onclick="switchRole('executive')" id="btn-executive" class="px-3 py-2 rounded-lg tab-active transition-all">
+          <i class="fa-solid fa-chart-line mr-1"></i>👑 Cockpit / 主管總覽
+        </button>
+        <button onclick="switchRole('pm')" id="btn-pm" class="px-3 py-2 rounded-lg tab-idle hover:text-white transition-all">
+          <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>🧑‍💼 PM Workspace / PM 工作區
+        </button>
+        <button onclick="switchRole('review')" id="btn-review" class="px-3 py-2 rounded-lg tab-idle hover:text-white transition-all">
+          <i class="fa-solid fa-file-signature mr-1"></i>🔍 Boss Visual Review / 專案審查
+        </button>
+        <button onclick="switchRole('handoff')" id="btn-handoff" class="px-3 py-2 rounded-lg tab-idle hover:text-white transition-all">
+          <i class="fa-solid fa-laptop-code mr-1"></i>🎨 Production Handoff / 設計與工程
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 overflow-y-auto soft-scrollbar p-4 md:p-6">
+
+    <!-- 1. EXECUTIVE DASHBOARD / 主管總覽 (Strict English for Boss) -->
+    <section id="view-executive" class="space-y-6">
+      <div class="flex flex-col lg:flex-row justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[.24em] text-senor-light font-semibold">Executive Cockpit / 決策看板</p>
+          <h2 class="text-2xl font-bold mt-1 text-white">Sitemap AEO Growth Dashboard / 數位資產成長總覽</h2>
+          <p class="text-sm text-slate-400 mt-2">
+            Real-time tracking of search engine authority benchmarks, approved page funnels, and generative keywords optimization parameters.
+            <span class="block text-xs text-slate-500 mt-1">/ 供高階主管與特助追蹤澳洲官網長尾詞排名與 RAG 內容審查狀態。</span>
+          </p>
+        </div>
+        
+        <!-- Status Meter -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 min-w-[280px]">
+          <div class="flex justify-between items-center">
+            <p class="text-xs text-slate-400">AEO Keyword Coverage (Australia)</p>
+            <span class="text-[10px] bg-senor-primary/20 text-senor-light border border-senor-primary/40 px-2 py-0.5 rounded-full font-bold">OPTIMAL</span>
+          </div>
+          <div class="mt-2 flex items-end gap-2">
+            <span class="text-3xl font-extrabold text-senor-light" id="progress-val">96.8%</span>
+            <span class="text-xs text-slate-500 mb-1">Targeting SwiftPOS</span>
+          </div>
+          <div class="w-full h-2 bg-slate-800 rounded-full mt-3 overflow-hidden">
+            <div class="h-full bg-senor-primary rounded-full" style="width:96.8%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-2 xl:grid-cols-5 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 status-card cursor-pointer" onclick="switchRole('review')">
+          <p class="text-xs text-slate-400"><i class="fa-solid fa-hourglass-half text-amber-400 mr-1.5 font-bold"></i>Pending Review / 待審核</p>
+          <p class="text-3xl font-bold mt-2 text-white" id="stat-pending">5</p>
+          <p class="text-[11px] text-slate-500 mt-2">Double Columns · 2-Clicks Action</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 status-card cursor-pointer" onclick="showPMPanel('returned')">
+          <p class="text-xs text-slate-400"><i class="fa-solid fa-rotate-left text-rose-400 mr-1.5"></i>Returned Revisions / 退回修改</p>
+          <p class="text-3xl font-bold mt-2 text-white" id="stat-returned">2</p>
+          <p class="text-[11px] text-slate-500 mt-2">Spec correction needed</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 status-card cursor-pointer" onclick="switchRole('handoff')">
+          <p class="text-xs text-slate-400"><i class="fa-solid fa-pen-ruler text-indigo-400 mr-1.5"></i>In Production / 設計工程</p>
+          <p class="text-3xl font-bold mt-2 text-white" id="stat-handoff">8</p>
+          <p class="text-[11px] text-slate-500 mt-2">WP publishing / coding</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 status-card">
+          <p class="text-xs text-slate-400"><i class="fa-solid fa-cloud-arrow-up text-emerald-400 mr-1.5"></i>Live Articles (AU) / 已上線</p>
+          <p class="text-3xl font-bold mt-2 text-emerald-400" id="stat-published">48</p>
+          <p class="text-[11px] text-slate-500 mt-2">Indexed by Google & GenAI</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 status-card">
+          <p class="text-xs text-slate-400"><i class="fa-solid fa-key text-sky-400 mr-1.5"></i>Targeted Keywords / 關鍵字</p>
+          <p class="text-3xl font-bold mt-2 text-sky-400" id="stat-keywords">114</p>
+          <p class="text-[11px] text-slate-500 mt-2">IP rated, fanless, kitchens</p>
+        </div>
+      </div>
+
+      <!-- Pending Approval Table -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <div class="flex flex-col md:flex-row justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+              Awaiting Executive Sign-off / 待審核內容看板
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Documents are processed via Dify RAG to prevent specs hallucination. Ready for double-column review.
+              <span class="block text-xs text-slate-500 mt-0.5">/ 經Dify數據清洗，防範捏造規格之待核准文案清單。</span>
+            </p>
+          </div>
+          <button onclick="switchRole('review')" class="bg-senor-primary hover:bg-senor-light text-white text-xs font-semibold px-4 py-2 rounded-xl transition">
+            Launch Review Console <i class="fa-solid fa-chevron-right ml-1"></i>
+          </button>
+        </div>
+        <div class="overflow-x-auto soft-scrollbar">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider">
+              <tr>
+                <th class="p-3">Target URL on Production</th>
+                <th class="p-3">Page Classification</th>
+                <th class="p-3">Focus Keywords</th>
+                <th class="p-3">Responsible Creator</th>
+                <th class="p-3">Ground-Truth Spec File</th>
+                <th class="p-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800 text-slate-300">
+              <tr class="hover:bg-slate-850 transition">
+                <td class="p-3 font-mono text-senor-light">/products/hecto-pos-a516/</td>
+                <td class="p-3">
+                  <span class="bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded">Product Hub</span>
+                </td>
+                <td class="p-3">IP65 Rated POS Terminal, Kitchen Proof POS System</td>
+                <td class="p-3">PM Mark</td>
+                <td class="p-3 font-mono text-xs text-slate-400"><i class="fa-solid fa-file-pdf mr-1 text-rose-400"></i>Hecto-POS-A516_Datasheet_Australia.pdf</td>
+                <td class="p-3 text-right">
+                  <button onclick="startReview('products')" class="bg-senor-primary hover:bg-senor-light text-white px-3 py-1.5 rounded-lg transition font-medium">Verify Content</button>
+                </td>
+              </tr>
+              <tr class="hover:bg-slate-850 transition">
+                <td class="p-3 font-mono text-senor-light">/solutions/hospitality/kitchen-management-kds/</td>
+                <td class="p-3">
+                  <span class="bg-sky-500/10 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded">Solution Hub</span>
+                </td>
+                <td class="p-3">Waterproof Kitchen Monitor</td>
+                <td class="p-3">PM Mark</td>
+                <td class="p-3 font-mono text-xs text-slate-400"><i class="fa-solid fa-file-word mr-1 text-blue-400"></i>KDS-21_Kitchen_Display_Spec.docx</td>
+                <td class="p-3 text-right">
+                  <button onclick="startReview('solutions')" class="bg-senor-primary hover:bg-senor-light text-white px-3 py-1.5 rounded-lg transition font-medium">Verify Content</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. PM WORKSPACE / PM 工作區 -->
+    <section id="view-pm" class="hidden space-y-6">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-[.24em] text-senor-light font-semibold font-bold">PM Workspace / 專案經理內容孵化器</p>
+          <h2 class="text-2xl font-bold mt-1 text-white">🧑‍💼 AI-Driven B2B Content Generator / AI 智慧內容產生器</h2>
+          <p class="text-sm text-slate-400 mt-2">
+            Configure target word limit, select target solutions mapping, and trigger Dify API to wash local PDF datasheets. 
+            <span class="block text-xs text-slate-500 mt-1">/ 配置生成字數、選擇 Solution 對接、調用 Dify 真實規格防幻想引擎。</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- PM Panel Toggles (Bilingual indicators) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <button onclick="showPMPanel('create')" class="status-card text-left bg-slate-900 border border-senor-primary/40 rounded-2xl p-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-senor-light font-bold">Add Web Page / 創立新網頁</p>
+              <p class="text-2xl font-bold mt-2 text-white">+</p>
+            </div>
+            <i class="fa-solid fa-folder-plus text-senor-light text-lg"></i>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-2">Custom layouts & AEO fields</p>
+        </button>
+        <button onclick="showPMPanel('pending')" class="status-card text-left bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Awaiting Boss Approval / 待審核</p>
+          <p class="text-3xl font-bold mt-2 text-amber-400">5</p>
+          <p class="text-[11px] text-slate-500 mt-2">Check review pipelines</p>
+        </button>
+        <button onclick="showPMPanel('returned')" class="status-card text-left bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Returned Pending Fix / 退回修正</p>
+          <p class="text-3xl font-bold mt-2 text-rose-400">2</p>
+          <p class="text-[11px] text-slate-500 mt-2">Correct details / resubmit</p>
+        </button>
+        <button onclick="showPMPanel('design')" class="status-card text-left bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Design Production / 設計工程</p>
+          <p class="text-3xl font-bold mt-2 text-indigo-400">8</p>
+          <p class="text-[11px] text-slate-500 mt-2">WP uploading / formatting</p>
+        </button>
+        <button onclick="showPMPanel('history')" class="status-card text-left bg-slate-900 border border-senor-light/40 rounded-2xl p-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-senor-light font-bold">History Archive / 歷史修訂</p>
+              <p class="text-3xl font-bold mt-2 text-sky-400 font-mono" id="stat-history-count">2</p>
+            </div>
+            <i class="fa-solid fa-clock-rotate-left text-sky-400 text-lg"></i>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-2">Browse & restore past edits</p>
+        </button>
+      </div>
+
+      <!-- Main Build Form -->
+      <div id="pm-create" class="pm-panel bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-6">
+        <div class="flex flex-col lg:flex-row justify-between gap-3 pb-4 border-b border-slate-800">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-square-poll-horizontal text-senor-light"></i>
+              AEO Strategy Settings & Target Scope / AEO 架構與佈局設定
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Construct the structure. Solutions directory supports variable folders. All output generated will strictly be in pure English.
+              <span class="block text-xs text-slate-500 mt-0.5">/ 設定 AEO 規格。Solution 分類支援多元自定義目錄。產出全英文佈局。</span>
+            </p>
+          </div>
+          <span class="self-start text-xs text-senor-light bg-senor-primary/10 border border-senor-primary/30 px-3 py-1.5 rounded-full">
+            <i class="fa-solid fa-shield-halved mr-1"></i> Confidence index: 99.1%
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <!-- Left Column Form Inputs -->
+          <div class="xl:col-span-2 space-y-5">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Page Type Selector -->
+              <label class="block">
+                <span class="text-xs text-slate-400 font-bold">1. Web Page Structure / 網頁類型 *</span>
+                <select id="pageType" onchange="toggleTypeForm(); updateUrl(); executeNamingSynchronization();" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none glow-border text-senor-light font-bold">
+                  <option value="products" selected>Product Details / 產品頁 (Best for Specs Mapping & Solution Link)</option>
+                  <option value="solutions">Enterprise Solutions / 解決方案頁 (Best for Painpoints & Features)</option>
+                  <option value="category">Class Hub / 產品分類頻道頁 (Best for Class Introduction & Heading)</option>
+                </select>
+              </label>
+
+              <!-- Dynamic Word Limit Slider -->
+              <div class="block">
+                <span class="text-xs text-slate-400 flex justify-between font-bold">
+                  <span>2. Target Word Length / AI 生成字數設定</span>
+                  <span id="wordCountLabel" class="text-senor-light font-bold font-mono">500 Words</span>
+                </span>
+                <input type="range" id="targetWordCount" min="300" max="700" step="50" value="500" oninput="updateWordRangeLabel()" class="mt-4 w-full accent-senor-primary h-2 bg-slate-950 rounded-lg cursor-pointer" />
+                <div class="flex justify-between text-[10px] text-slate-500 px-1 mt-1 font-mono">
+                  <span>300 (Brief AEO)</span>
+                  <span>500 (B2B Standard)</span>
+                  <span>700 (Expert Authority)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic URL Generator (Varying directory folder integration) -->
+            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-4">
+              <p class="text-xs font-bold text-senor-light uppercase tracking-wider"><i class="fa-solid fa-link"></i> Custom URL Routing Blueprint / 官網網址定位</p>
+              
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="block md:col-span-1">
+                  <span class="text-xs text-slate-400 font-semibold">Fixed Base Root</span>
+                  <input id="urlStructure" readonly class="mt-1.5 w-full bg-slate-900 border border-slate-850 rounded-xl p-3 text-xs font-mono text-slate-500 select-all" value="https://www.senortech.com.au" />
+                </div>
+
+                <!-- Custom solution subdirectory input if solution selected -->
+                <div class="block md:col-span-1" id="solution-subfolder-block">
+                  <span class="text-xs text-slate-400 font-semibold">Solutions Directory / 自訂類別目錄</span>
+                  <input id="solutionSubfolder" oninput="updateUrl()" value="hospitality" placeholder="e.g. hospitality, logistics, retail" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-teal-300 focus:outline-none glow-border" />
+                </div>
+
+                <div class="block md:col-span-1">
+                  <span class="text-xs text-slate-400 font-semibold">URL Slug / 網址Slug *</span>
+                  <input id="pageName" oninput="updateUrl(); executeNamingSynchronization();" value="hecto-pos-a516" placeholder="e.g. hecto-pos-a516" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono focus:outline-none glow-border" />
+                </div>
+              </div>
+
+              <div class="block">
+                <span class="text-xs text-slate-400 font-semibold">Target Production Web Address / 官網預期發布之網址</span>
+                <div class="mt-1.5 flex gap-2">
+                  <input id="fullUrl" readonly class="w-full bg-slate-900 border border-slate-850 rounded-xl p-3 text-xs font-mono text-senor-light" />
+                  <button onclick="copyText('fullUrl')" class="bg-slate-800 hover:bg-slate-750 px-4 rounded-xl text-xs whitespace-nowrap transition"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Internal Project Attributes -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="block">
+                <span class="text-xs text-slate-400 font-semibold">Corporate Project Title / 專案名稱 * <span class="text-teal-400 text-[10px] font-mono">(Linked to Slug)</span></span>
+                <input id="projectName" value="Hecto POS A516 AI-Integrated Kitchen System" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none glow-border text-white" />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-400">Context Target Language</span>
+                <input value="Australian English (Pure Business Copy)" readonly class="mt-1.5 w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-sm text-slate-400 cursor-not-allowed" />
+              </label>
+            </div>
+
+            <!-- Focus Keywords with Auto-recommendation -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-slate-400 font-bold">Target Long-tail Keywords / AEO核心長尾關鍵字 <span class="text-teal-400 text-[10px]">(Auto-Adapted by Slug)</span></span>
+                <span id="keywordCount" class="text-xs text-senor-light font-mono font-bold">3 / 3</span>
+              </div>
+              <div id="keywordWrap" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input id="kw1" value="IP65 Rated POS Terminal" oninput="updateKeywordCount()" class="keywordInput bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none glow-border font-mono text-slate-300" />
+                <input id="kw2" value="Kitchen Proof POS System" oninput="updateKeywordCount()" class="keywordInput bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none glow-border font-mono text-slate-300" />
+                <input id="kw3" value="High-Temp Kitchen POS" oninput="updateKeywordCount()" class="keywordInput bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs focus:outline-none glow-border font-mono text-slate-300" />
+              </div>
+            </div>
+
+            <!-- Dynamic Field: Best Suited Solutions Multi-Select (For Products Pages) -->
+            <div id="type-fields-product" class="p-4 bg-teal-950/20 border border-teal-500/20 rounded-xl space-y-4">
+              <div>
+                <h4 class="text-sm font-bold text-senor-light"><i class="fa-solid fa-link"></i> Solutions Architecture Linkage (Multiple Solutions 1~3 mapped)</h4>
+                <p class="text-xs text-slate-400 mt-1">Select compatible solutions. English descriptions will auto-render and sitemap links will bind dynamically.</p>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-start gap-3 p-2 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <input type="checkbox" id="check-kds" value="kds" checked onchange="updateSolutionCheckboxSelection()" class="mt-1 w-4 h-4 text-senor-primary bg-slate-900 border-slate-700 rounded focus:ring-0" />
+                  <label for="check-kds" class="text-xs cursor-pointer">
+                    <span class="font-bold text-slate-200">Hospitality -> Kitchen Management (KDS)</span>
+                    <span class="block text-slate-500">URL Target: /solutions/hospitality/kitchen-management-kds/</span>
+                  </label>
+                </div>
+                <div class="flex items-start gap-3 p-2 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <input type="checkbox" id="check-retail" value="retail" onchange="updateSolutionCheckboxSelection()" class="mt-1 w-4 h-4 text-senor-primary bg-slate-900 border-slate-700 rounded focus:ring-0" />
+                  <label for="check-retail" class="text-xs cursor-pointer">
+                    <span class="font-bold text-slate-200">Retail -> Boutique & Specialized Retail</span>
+                    <span class="block text-slate-500">URL Target: /solutions/retail/boutique-specialized/</span>
+                  </label>
+                </div>
+                <div class="flex items-start gap-3 p-2 bg-slate-950/50 rounded-lg border border-slate-800">
+                  <input type="checkbox" id="check-logistics" value="logistics" onchange="updateSolutionCheckboxSelection()" class="mt-1 w-4 h-4 text-senor-primary bg-slate-900 border-slate-700 rounded focus:ring-0" />
+                  <label for="check-logistics" class="text-xs cursor-pointer">
+                    <span class="font-bold text-slate-200">Industrial & Logistics -> Factory Automation</span>
+                    <span class="block text-slate-500">URL Target: /solutions/industrial-logistics/factory-automation/</span>
+                  </label>
+                </div>
+              </div>
+              <div class="text-[11px] text-slate-400">
+                Mapped solutions count: <span id="checked-count" class="font-bold text-senor-light">1</span> / 3 bound Solutions
+              </div>
+            </div>
+
+            <!-- Dynamic Field: Solutions Pain Points (For Solutions Page) -->
+            <div id="type-fields-solution" class="hidden p-4 bg-indigo-950/20 border border-indigo-500/20 rounded-xl space-y-4">
+              <div>
+                <h4 class="text-sm font-bold text-indigo-300"><i class="fa-solid fa-triangle-exclamation"></i> Common Industry Painpoints & Countermeasures</h4>
+                <p class="text-xs text-slate-400 mt-1">Lay out customer technical distress. AI will embed answers optimized for Generative Search.</p>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="block">
+                  <span class="text-xs text-slate-300 font-semibold">Australia Customer Critical Painpoints (One per line)*</span>
+                  <textarea id="sol-painpoints" rows="3" class="mt-1.5 w-full bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-400 text-slate-300">Frequent system crashes caused by high kitchen humidity and cooking oils.
+Receipt printing delays during peak dining hours.</textarea>
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-300 font-semibold">Senor Industrial Solutions Countermeasure (One per line)*</span>
+                  <textarea id="sol-features" rows="3" class="mt-1.5 w-full bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-400 text-slate-300">Complete IP66-level rugged housing to shield dust, steam and splash.
+Fanless motherboard with high-efficiency heatsink chassis.</textarea>
+                </label>
+              </div>
+            </div>
+
+            <!-- Dynamic Field: Category Overview (For Category Page) -->
+            <div id="type-fields-category" class="hidden p-4 bg-emerald-950/20 border border-emerald-500/20 rounded-xl space-y-4">
+              <div>
+                <h4 class="text-sm font-bold text-emerald-300"><i class="fa-solid fa-folder-tree"></i> Global Class Heading & Introduction Mapping</h4>
+                <p class="text-xs text-slate-400 mt-1">This segment renders as heading block for product indexing. Only heading and main description required.</p>
+              </div>
+              <div class="space-y-3">
+                <label class="block">
+                  <span class="text-xs text-slate-300 font-semibold">Category Heading *</span>
+                  <input id="cat-title" value="Next-Generation Hospitality & Retail Hardware Frameworks" class="mt-1.5 w-full bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs focus:outline-none focus:border-emerald-400 text-slate-300" />
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-300 font-semibold">Category Detailed Introduction Description *</span>
+                  <textarea id="cat-intro" rows="3" class="mt-1.5 w-full bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs focus:outline-none focus:border-emerald-400 text-slate-300">Explore Senor Tech's masterfully engineered line of POS Systems, Touch Panels, and Kiosks customized for high reliability across Australia's commercial landscapes.</textarea>
+                </label>
+              </div>
+            </div>
+
+            <!-- Dify and local Document Store -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
+              <div class="flex flex-col sm:flex-row justify-between gap-2 border-b border-slate-800 pb-3">
+                <div>
+                  <h4 class="text-sm font-bold text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-database text-sky-400"></i>
+                    Ground-Truth Data Store Settings (Anti-Hallucination RAG)
+                  </h4>
+                  <p class="text-xs text-slate-400 mt-1">Secure correct technical data by configuring PDF files or external competitor links.</p>
+                </div>
+                <button onclick="addKnowledgeSource()" class="self-start bg-slate-800 hover:bg-slate-750 text-xs px-3 py-1.5 rounded-xl transition">
+                  <i class="fa-solid fa-plus mr-1"></i> Add Custom Link
+                </button>
+              </div>
+
+              <!-- Dify Doc Sync -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-slate-900 border border-slate-800 rounded-xl">
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-semibold">Select Dify Knowledge base Document</span>
+                  <select id="difyDocument" onchange="loadDifyDocInfo()" class="mt-1.5 w-full bg-slate-950 border border-slate-750 rounded-lg p-2.5 text-xs text-senor-light font-bold">
+                    <option value="hecto-pos-a516" selected>Hecto-POS-A516_Datasheet_Australia.pdf (Premium POS Spec)</option>
+                    <option value="kds21-monitor">KDS-21_Kitchen_Display_Spec.docx (Commercial KDS Spec)</option>
+                  </select>
+                </label>
+                <div class="text-xs text-slate-400 space-y-1">
+                  <p class="text-slate-500 font-bold">RAG Ground-truth Verification:</p>
+                  <p id="dify-preview-cpu">CPU: Loading...</p>
+                  <p id="dify-preview-waterproof">Ingress rating: Loading...</p>
+                </div>
+              </div>
+
+              <!-- Dynamic KB Sources -->
+              <div id="kbSources" class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-3">
+                  <select class="bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs text-slate-300">
+                    <option selected>Cloud Folder Link / Google Drive</option>
+                    <option>Competitor Sitemap URL Reference</option>
+                    <option>Manual Engineering Notes</option>
+                  </select>
+                  <input value="https://drive.google.com/drive/folders/corporate-spec-v3-australia" class="bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs font-mono text-slate-300" />
+                  <button onclick="this.parentElement.remove()" class="bg-slate-800 hover:bg-rose-600 rounded-xl px-3 text-xs transition">Remove</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3 pt-2">
+              <button onclick="triggerDifyGeneration()" class="bg-senor-primary hover:bg-senor-light text-white font-bold px-6 py-3.5 rounded-xl text-sm transition flex items-center gap-2">
+                <i class="fa-solid fa-robot text-base"></i> 產生內容/send
+              </button>
+              <button onclick="saveDraftToSupabaseOrLocal()" class="bg-slate-800 hover:bg-slate-750 text-white font-semibold px-5 py-3.5 rounded-xl text-sm transition">
+                Save Draft / 儲存草稿
+              </button>
+              <button onclick="submitToReviewDirectly()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-3.5 rounded-xl text-sm transition">
+                Push To Executive Review / 送審主管
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Column Guidelines -->
+          <aside class="space-y-4">
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+              <h4 class="text-sm font-bold text-senor-light flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-info"></i>
+                B2B Copywriting Guardrails / 文案撰寫規範
+              </h4>
+              <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                AEO structures require explicit header tags layout:<br />
+                <span class="text-senor-light font-bold">`[H1]`</span>: Primary landing header (Exactly 1 allowed per page).<br />
+                <span class="text-senor-light font-bold">`[H2]`</span>: Context block focus topics.<br />
+                <span class="text-senor-light font-bold">`[H3]`</span>: Specific product features/solutions matching search questions.
+              </p>
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+              <h4 class="text-sm font-bold text-indigo-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-shield-halved"></i>
+                Keyword Integration Matrix / 關鍵字注入矩陣
+              </h4>
+              <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                The content optimizer will inject your 3 targeted long-tail keywords directly into the generated English copywriting. Ensure seamless, natural syntactic placement.
+              </p>
+            </div>
+          </aside>
+        </div>
+
+        <!-- PM Workspace Output & Real-time Live Simulator (PM Interactive Space - No Switching required!) -->
+        <div id="generatedOutput" class="hidden border-t border-slate-800 pt-6 space-y-4">
+          <div class="flex flex-col lg:flex-row justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice text-senor-light"></i>
+                AI-Generated English AEO Package (PM Interactive Space)
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">
+                Edit raw values directly in the left fields. Observe sitemap updates and visual layouts directly inside the embedded simulator on the right.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <!-- Left: Editable Output Fields -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-4">
+              <label class="block">
+                <span class="text-xs text-slate-400 font-bold">Main Header (Must include [H1])</span>
+                <input id="out-mainTitle" oninput="syncPMToDraft()" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm font-bold text-slate-200 glow-border" />
+              </label>
+
+              <!-- META TAGS (Strictly required) -->
+              <div class="grid grid-cols-1 gap-3 p-3 bg-slate-900 border border-slate-800 rounded-xl">
+                <p class="text-xs font-bold text-senor-light"><i class="fa-solid fa-tags"></i> B2B META Optimization Package</p>
+                <label class="block">
+                  <span class="text-[11px] text-slate-400 font-semibold">Meta Title</span>
+                  <input id="out-metaTitle" oninput="syncPMToDraft()" class="mt-1 w-full bg-slate-950 border border-slate-880 text-xs p-2 rounded text-slate-300 font-mono" />
+                </label>
+                <label class="block">
+                  <span class="text-[11px] text-slate-400 font-semibold">Meta Keywords</span>
+                  <input id="out-metaKeywords" oninput="syncPMToDraft()" class="mt-1 w-full bg-slate-950 border border-slate-880 text-xs p-2 rounded text-slate-300 font-mono" />
+                </label>
+                <label class="block">
+                  <span class="text-[11px] text-slate-400 font-semibold">Meta Description</span>
+                  <textarea id="out-metaDescription" oninput="syncPMToDraft()" rows="2" class="mt-1 w-full bg-slate-950 border border-slate-880 text-xs p-2 rounded text-slate-300 font-mono"></textarea>
+                </label>
+              </div>
+
+              <label class="block">
+                <span class="text-xs text-slate-400 font-bold">Main Integration Copy (Laid-out with focus keywords)</span>
+                <textarea id="out-mainIntro" oninput="syncPMToDraft()" rows="8" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs leading-relaxed focus:outline-none glow-border text-slate-300 font-mono"></textarea>
+              </label>
+              
+              <!-- Dynamic Area: Suited Solutions Mapping -->
+              <div id="out-suited-wrapper" class="space-y-3">
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-bold">Recommended Solutions Section Header</span>
+                  <input id="out-suitedTitle" oninput="syncPMToDraft()" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs glow-border text-slate-300" />
+                </label>
+                <div class="text-xs text-slate-400">
+                  <span class="text-slate-500 font-bold">Sitemap Mapped Solutions Package:</span>
+                  <div id="out-suited-mapped-list" class="mt-2 space-y-2">
+                    <!-- Loaded dynamically -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Dynamic Area: Painpoints & Solutions Features -->
+              <div id="out-solution-wrapper" class="hidden space-y-3">
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-bold">Solutions Common Customer Painpoints</span>
+                  <textarea id="out-painpoints" oninput="syncPMToDraft()" rows="3" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs glow-border text-slate-300 font-mono"></textarea>
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-bold">Senor Strategy High Durability Features</span>
+                  <textarea id="out-solutionFeatures" oninput="syncPMToDraft()" rows="3" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs glow-border text-slate-300 font-mono"></textarea>
+                </label>
+              </div>
+
+              <!-- Dynamic Area: Category Heading & Overview Intro -->
+              <div id="out-category-wrapper" class="hidden space-y-3">
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-bold">Category Feature Title</span>
+                  <input id="out-categoryHeading" oninput="syncPMToDraft()" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs glow-border text-slate-300" />
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-bold">Category Detailed Overview Introduction</span>
+                  <textarea id="out-categoryIntro" oninput="syncPMToDraft()" rows="3" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs leading-relaxed glow-border text-slate-300 font-mono"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <!-- Right: FAQs, Meta ALT & Live PM Simulator (PM PREVIEW AND EDIT FUNCTION) -->
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-4">
+              <!-- FAQs section (Hidden for category pages dynamically) -->
+              <div id="pm-faq-editor-block">
+                <label class="block">
+                  <span class="text-xs text-slate-400 font-bold">FAQ Optimizations (AEO Question Mining)</span>
+                  <div class="space-y-3 mt-1.5">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                      <input id="out-faq1-q" oninput="syncPMToDraft()" class="w-full bg-transparent text-xs font-bold text-senor-light outline-none" />
+                      <textarea id="out-faq1-a" oninput="syncPMToDraft()" rows="2" class="mt-2 w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 focus:outline-none"></textarea>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                      <input id="out-faq2-q" oninput="syncPMToDraft()" class="w-full bg-transparent text-xs font-bold text-senor-light outline-none" />
+                      <textarea id="out-faq2-a" oninput="syncPMToDraft()" rows="2" class="mt-2 w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 focus:outline-none"></textarea>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Image Alt description -->
+              <label class="block">
+                <span class="text-xs text-slate-400 font-bold">Image SEO Alt & Creative Guidelines</span>
+                <input id="out-altText" oninput="syncPMToDraft()" class="mt-1.5 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-300" />
+                <textarea id="out-imageSuggestion" oninput="syncPMToDraft()" rows="2" class="mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-400 focus:outline-none"></textarea>
+              </label>
+
+              <!-- In-place visualizer for PM (PREVIEW DURING EDITING) -->
+              <div class="border border-slate-800 rounded-xl p-4 bg-white text-slate-900 space-y-4">
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1.5"><i class="fa-solid fa-desktop"></i> PM Sandbox Real-time Simulator</p>
+                <div id="pm-sim-main" class="space-y-4">
+                  <!-- JS Injection -->
+                </div>
+              </div>
+
+              <div class="pt-2">
+                <button onclick="submitDraftToReview()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3.5 text-xs font-bold transition flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-share-from-square"></i> Push To Executive Sign-off Terminal / 送審主管
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other PM Tabs Mocked -->
+      <div id="pm-pending" class="pm-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <h3 class="text-base font-bold mb-3">Awaiting Executive Approval / 待核准送審清單</h3>
+        <p class="text-xs text-slate-400 mb-4">Content items submitted by creators currently pending Review by Boss/Assistant.</p>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-400">
+          Total of 5 assets currently in [Pending Verification] state.
+        </div>
+      </div>
+      <div id="pm-returned" class="pm-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <h3 class="text-base font-bold text-rose-400 mb-3">Revisions Requested / 退回修正清單</h3>
+        <p class="text-xs text-slate-400 mb-4">Correct returned items based on the executive feedback log.</p>
+        <div class="bg-slate-950 border border-rose-500/20 rounded-xl p-4 text-xs text-slate-300">
+          <p class="font-bold text-rose-400">Revision Note: Incorrect Front panel waterproof IP configuration.</p>
+          <p class="mt-2 text-slate-500">Page Node: /products/ai-sensor-faq</p>
+        </div>
+      </div>
+      <div id="pm-design" class="pm-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <h3 class="text-base font-bold mb-3">Approved Content Layout Active Funnels / 製作中清單</h3>
+        <p class="text-xs text-slate-400 mb-4">Designers and frontend engineers are deploying sitemap Schema structures via the handoff platform.</p>
+      </div>
+
+      <!-- Historical Archive Hub Panel -->
+      <div id="pm-history" class="pm-panel hidden bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-senor-light"></i>
+            Historical Revisions Archive / 歷史檔案與修改歷程
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            Browse through previous document saves, drafts, and approved iterations. Restore any historical version to the active PM workspace.
+            <span class="block text-xs text-slate-500 mt-0.5">/ 瀏覽歷史草稿、核准與完工封包版本，支援一鍵回滾還原至當前工作區。</span>
+          </p>
+        </div>
+
+        <div class="overflow-x-auto soft-scrollbar">
+          <table class="w-full text-left text-xs">
+            <thead class="text-slate-400 border-b border-slate-800 uppercase tracking-wider font-semibold">
+              <tr>
+                <th class="p-3">Timestamp / 儲存時間</th>
+                <th class="p-3">Operator / 變更者</th>
+                <th class="p-3">Project / 網頁節點</th>
+                <th class="p-3">Type / 狀態</th>
+                <th class="p-3">Revision Summary / 備註</th>
+                <th class="p-3 text-right">Action / 處理</th>
+              </tr>
+            </thead>
+            <tbody id="history-log-table-body" class="divide-y divide-slate-800 text-slate-300">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. PROJECT REVIEW / 專案審查 (Presbyopia Zoom Optimized with Collapsible Editor) -->
+    <section id="view-review" class="hidden space-y-6">
+      <div class="flex flex-col lg:flex-row justify-between gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-[.24em] text-senor-light font-semibold">Executive Terminal / 專案簽核</p>
+          <h2 class="text-2xl font-bold mt-1 text-white">Bilingual Verification & Zoom Simulator / 雙欄審核預覽</h2>
+          <p class="text-sm text-slate-400 mt-1">
+            Toggle <strong>Collapse Editor</strong> to gain max reading surface. Activate <strong>Presbyopia Reading Mode</strong> for larger comfortable fonts.
+            <span class="block text-xs text-slate-500 mt-0.5">/ 專為高階決策者設計：具備「摺疊左側欄位」與「老花友善放大字體」功能。</span>
+          </p>
+        </div>
+        
+        <!-- Action Buttons (Strict English for Boss / Bilingual headers kept) -->
+        <div class="flex gap-2">
+          <button onclick="rejectActiveTask()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-lg">
+            <i class="fa-solid fa-ban"></i> Request Revision / 退回修改
+          </button>
+          <button onclick="approveActiveTask()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-lg shadow-emerald-900/30 flex items-center gap-1.5">
+            <i class="fa-solid fa-check-double"></i> Approve & Deliver / 核准並交付設計
+          </button>
+        </div>
+      </div>
+
+      <!-- Presbyopia Controls -->
+      <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-white"><i class="fa-solid fa-glasses text-senor-light"></i> Reading Aids (老花眼輔助設定):</span>
+          <button onclick="toggleReviewEditorCollapse()" id="btn-toggle-editor" class="bg-slate-800 hover:bg-slate-750 text-slate-200 px-3 py-1.5 rounded-lg transition font-mono font-semibold">
+            [+] Expand Editor
+          </button>
+          <button onclick="togglePresbyopiaZoom()" id="btn-toggle-zoom" class="bg-teal-900/60 text-teal-300 border border-teal-500/30 px-3 py-1.5 rounded-lg transition font-mono font-semibold">
+            Presbyopia Zoom: Active (130%)
+          </button>
+        </div>
+        <div class="text-[11px] text-slate-400">
+          Left column is collapsed by default to allow broad visual assessment on the sitemap layout.
+        </div>
+      </div>
+
+      <!-- Optimized Layout Grid -->
+      <div class="grid grid-cols-12 gap-6">
+        
+        <!-- Left: Editable Output fields (Collapsible) -->
+        <div id="review-editor-column" class="col-span-12 xl:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 max-h-[75vh] overflow-y-auto soft-scrollbar hidden transition-all duration-300">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div>
+              <h3 class="font-bold text-senor-light">Approver Editor / 審查修改</h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">Real-time update applies to simulator</p>
+            </div>
+            <span class="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-300 px-2 py-1 rounded-full font-mono">Pending</span>
+          </div>
+
+          <label class="block">
+            <span class="text-xs text-slate-400">Main Header / Title</span>
+            <input id="rev-mainTitle" oninput="syncReviewToDraft()" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs font-bold text-white focus:outline-none glow-border" />
+          </label>
+
+          <!-- Meta Tags Review -->
+          <div class="grid grid-cols-1 gap-3 p-3 bg-slate-950 border border-slate-850 rounded-xl">
+            <p class="text-xs font-bold text-senor-light"><i class="fa-solid fa-magnifying-glass"></i> Meta Verification Hub</p>
+            <label class="block">
+              <span class="text-[11px] text-slate-400">Meta Title Tag</span>
+              <input id="rev-metaTitle" oninput="syncReviewToDraft()" class="mt-1 w-full bg-slate-900 border border-slate-800 text-xs p-2 rounded text-slate-300 font-mono" />
+            </label>
+            <label class="block">
+              <span class="text-[11px] text-slate-400">Meta Keywords</span>
+              <input id="rev-metaKeywords" oninput="syncReviewToDraft()" class="mt-1 w-full bg-slate-900 border border-slate-800 text-xs p-2 rounded text-slate-300 font-mono" />
+            </label>
+            <label class="block">
+              <span class="text-[11px] text-slate-400">Meta Description</span>
+              <textarea id="rev-metaDescription" oninput="syncReviewToDraft()" rows="2" class="mt-1 w-full bg-slate-900 border border-slate-800 text-xs p-2 rounded text-slate-300 font-mono"></textarea>
+            </label>
+          </div>
+
+          <label class="block">
+            <span class="text-xs text-slate-400">Main Content Copy</span>
+            <textarea id="rev-mainIntro" oninput="syncReviewToDraft()" rows="8" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 leading-relaxed font-mono focus:outline-none glow-border"></textarea>
+          </label>
+
+          <!-- Suited solutions block (Product level mapping review) -->
+          <div id="rev-suited-block" class="p-3 bg-teal-950/20 border border-teal-500/20 rounded-xl space-y-3">
+            <p class="text-xs text-senor-light font-bold"><i class="fa-solid fa-link"></i> Solutions Binding Index</p>
+            <label class="block">
+              <span class="text-xs text-slate-400">Compatibility Block Header</span>
+              <input id="rev-suitedTitle" oninput="syncReviewToDraft()" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300" />
+            </label>
+            <div class="text-xs text-slate-400">
+              <span class="text-slate-500 font-bold">Solutions Links to Deploy:</span>
+              <div id="rev-suited-list" class="mt-2 space-y-1">
+                <!-- Dynamically populated links -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Solutions page block review -->
+          <div id="rev-solution-block" class="hidden p-3 bg-indigo-950/20 border border-indigo-500/20 rounded-xl space-y-3">
+            <p class="text-xs text-indigo-300 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Painpoints & Feature Matrix</p>
+            <label class="block">
+              <span class="text-xs text-slate-400">Common Distress Points</span>
+              <textarea id="rev-painpoints" oninput="syncReviewToDraft()" rows="2" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 font-mono"></textarea>
+            </label>
+            <label class="block">
+              <span class="text-xs text-slate-400">Senor Features Counters</span>
+              <textarea id="rev-solutionFeatures" oninput="syncReviewToDraft()" rows="2" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 font-mono"></textarea>
+            </label>
+          </div>
+
+          <!-- Category page block review -->
+          <div id="rev-category-block" class="hidden p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl space-y-3">
+            <p class="text-xs text-emerald-300 font-bold"><i class="fa-solid fa-folder-tree"></i> Global Class Elements</p>
+            <label class="block">
+              <span class="text-xs text-slate-400">Class Main Header</span>
+              <input id="rev-categoryHeading" oninput="syncReviewToDraft()" class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-300" />
+            </label>
+            <label class="block">
+              <span class="text-xs text-slate-400">Class Detailed Overview Text</span>
+              <textarea id="rev-categoryIntro" oninput="syncReviewToDraft()" rows="3" class="text-slate-400 rounded-lg p-2.5 text-xs text-slate-300 font-mono"></textarea>
+            </label>
+          </div>
+
+          <!-- FAQs Area review -->
+          <div id="rev-faq-editor-block" class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-3">
+            <p class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-circle-question"></i> FAQ Question Mapping</p>
+            <div class="space-y-2">
+              <input id="rev-faq1-q" oninput="syncReviewToDraft()" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs font-bold text-white" />
+              <textarea id="rev-faq1-a" oninput="syncReviewToDraft()" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-slate-300"></textarea>
+            </div>
+            <div class="space-y-2">
+              <input id="rev-faq2-q" oninput="syncReviewToDraft()" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs font-bold text-white" />
+              <textarea id="rev-faq2-a" oninput="syncReviewToDraft()" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-slate-300"></textarea>
+            </div>
+          </div>
+
+          <!-- Approver Comments -->
+          <label class="block">
+            <span class="text-xs text-slate-400 font-bold"><i class="fa-solid fa-pen-nib text-rose-400"></i> Executive Revision Instructions (On Rejection)</span>
+            <textarea id="rev-approverNotes" placeholder="Provide clear instructions for the creators to re-wash the datasheet details..." class="mt-1.5 w-full h-20 bg-slate-950 border border-slate-750 rounded-xl p-3 text-sm focus:outline-none focus:border-rose-400"></textarea>
+          </label>
+          
+          <div class="pt-2 text-right">
+            <button onclick="syncReviewToDraft(); showNotification('Success', 'Save Edited Version / 審核修改版已儲存。', 'success');" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-4 py-2.5 rounded-xl font-bold transition">
+              <i class="fa-solid fa-save"></i> Save Edited Version / 儲存審核修改
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Executive Front-End Visualizer (Colspan matches toggle state) -->
+        <div id="review-preview-column" class="col-span-12 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between max-h-[75vh]">
+          <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+            <span class="text-xs text-slate-400 font-bold"><i class="fa-solid fa-desktop"></i> Senor Tech Australia Live Front-end Simulator</span>
+            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-bold">LIVE SYNC</span>
+          </div>
+
+          <!-- Google Snippet Card in Review -->
+          <div class="p-4 bg-white border border-slate-200 rounded-xl">
+            <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2"><i class="fa-brands fa-google text-blue-500 mr-1"></i> Simulated Google Snippet Preview</p>
+            <div class="text-[11px] font-sans">
+              <div class="text-slate-500 flex items-center gap-1 font-semibold">https://www.senortech.com.au <span class="text-[8px] text-slate-400">▼</span></div>
+              <div class="text-blue-800 hover:underline font-medium text-sm cursor-pointer mt-0.5 font-bold" id="sim-google-title-review">Hecto POS A516 | Waterproof Front Bezel</div>
+              <div class="text-slate-600 leading-normal mt-1" id="sim-google-desc-review">Explore the detailed specifications of Hecto POS. Engineered to resist extreme cooking oils and humid kitchen environments.</div>
+            </div>
+          </div>
+
+          <!-- Simulated Browser (Zoom-able for Presbyopic Boss) -->
+          <div id="sim-main-content-scroll" class="flex-1 overflow-y-auto soft-scrollbar bg-white text-slate-900 rounded-xl p-6 border border-slate-200 shadow-2xl space-y-5 boss-large-text">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3 text-[11px] text-slate-500">
+              <div class="flex items-center gap-1">
+                <span class="font-extrabold text-senor-dark uppercase tracking-widest text-xs">SENOR</span>
+                <span class="bg-senor-primary text-white px-1 text-[8px] rounded font-bold">TECH</span>
+              </div>
+              <div class="flex gap-4 font-semibold text-slate-700">
+                <span>Products</span>
+                <span>Solutions</span>
+                <span>Support</span>
+                <span>Contact</span>
+              </div>
+            </div>
+
+            <div id="sim-main-content" class="space-y-4">
+              <!-- Dynamically populated preview -->
+            </div>
+
+            <div class="border-t border-slate-200 pt-3 text-[10px] text-slate-400 flex justify-between">
+              <span>© 2026 Senor Tech Australia. All Rights Reserved.</span>
+              <span class="font-mono text-slate-500" id="sim-live-url_rev font-semibold">https://www.senortech.com.au/...</span>
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 flex justify-between items-center text-xs text-slate-400">
+            <span>Schema.org (JSON-LD) tag block status: <span class="text-emerald-400 font-bold">READY</span></span>
+            <button onclick="showNotification('Schema JSON-LD', state.activeTask.generatedData.schemaMarkup, 'info')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded-lg transition text-[10px]">Verify JSON-LD code</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. DESIGN & ENGINEERING / 設計與工程交接 (OPTIMIZED FOR DESIGNERS) -->
+    <section id="view-handoff" class="hidden space-y-6">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div>
+          <p class="text-xs uppercase tracking-[.24em] text-teal-400 font-semibold">Design & Engineering Handoff / 開發部署端點</p>
+          <h2 class="text-2xl font-bold mt-1 text-white">🎨 Production Handoff Desk / 設計與工程交接平台</h2>
+          <p class="text-sm text-slate-400 mt-2">
+            Review approved sitemap content page-by-page. Atomic separation of META, Title, and body with Gutenberg Block structures.
+            <span class="block text-xs text-slate-500 mt-0.5">/ 專屬設計與排版優化：META、標題、內文完全拆分，支援獨立一鍵複製及 Gutenberg / Elementor 區塊提示。</span>
+          </p>
+        </div>
+        
+        <!-- Quick Export Handout Action -->
+        <button onclick="downloadMarkdownPackage()" class="bg-slate-800 hover:bg-slate-750 text-white text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 transition flex items-center gap-2">
+          <i class="fa-solid fa-file-arrow-down text-senor-light text-sm"></i> Download Package (.md)
+        </button>
+      </div>
+
+      <!-- Dev Indicators -->
+      <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400 font-bold">Approved Queue / 待處理</p>
+          <p class="text-3xl font-bold mt-2 text-amber-400" id="handoff-pending-count">2</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400 font-bold">In Active Production / 製作中</p>
+          <p class="text-3xl font-bold mt-2 text-indigo-400 font-mono font-semibold">4</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400 font-bold">Sitemap Layout Issues / 問題回報</p>
+          <p class="text-3xl font-bold mt-2 text-rose-400 font-mono font-semibold">1</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400 font-bold">AU Deployed (Month) / 本月已上線</p>
+          <p class="text-3xl font-bold mt-2 text-emerald-400" id="handoff-published-count">16</p>
+        </div>
+      </div>
+
+      <!-- TASK LIST VIEW (待處理的檔案列表) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-teal-400"></i>
+            Approved Pending Sitemaps List / 待處理檔案列表 (設計師領任務)
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">
+            Choose a sitemap page below to enter the production layout workbench, copy variables, and configure on the live WordPress system.
+            <span class="block text-xs text-slate-500 mt-0.5">/ 點擊「進入製作工作台」查看 PM 規劃之網址、老闆審核過的前端預覽與程式標籤。</span>
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="handoff-task-board">
+          <!-- Dynamically populated with Javascript -->
+        </div>
+      </div>
+
+      <!-- DESIGNER ACTIVE WORKBENCH PANEL (Only visible when a task is entered) -->
+      <div id="designer-workbench-container" class="hidden grid grid-cols-12 gap-6 pt-2">
+        
+        <!-- Left Column: Atomized copyable fields & WordPress Gutenberg Block Map -->
+        <div class="col-span-12 xl:col-span-7 space-y-6">
+          
+          <!-- Back button and title -->
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <span class="text-[10px] bg-teal-500/10 text-teal-300 px-2 py-0.5 rounded font-mono font-bold uppercase">ACTIVE LAYOUT ENVIRONMENT</span>
+              <h3 class="text-base font-bold text-white mt-1" id="handoff-active-title">Loading Page Workspace...</h3>
+            </div>
+            <button onclick="exitDesignerWorkbench()" class="bg-slate-800 hover:bg-slate-750 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 transition">
+              <i class="fa-solid fa-arrow-left mr-1"></i> Back to Pending List / 返回列表
+            </button>
+          </div>
+
+          <!-- Target URL and Scope Details Card (PM已設定網址的欄位) -->
+          <div class="bg-slate-900 border border-senor-primary/40 rounded-2xl p-5 space-y-3">
+            <h3 class="text-sm font-bold text-senor-light flex items-center gap-2">
+              <i class="fa-solid fa-location-arrow"></i>
+              PM Configured Production URL Address / PM 已設定目標網址 (必填路徑)
+            </h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Ensure you create this page exactly at the following relative directory under the Australian domain.
+              <span class="block text-xs text-slate-500 mt-0.5">/ 設計師在官網發布時，請確保網頁網址路徑完全一致：</span>
+            </p>
+            <div class="flex gap-2">
+              <input id="h-pm-target-url" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-teal-300 font-bold select-all" />
+              <button onclick="copyHandoffField('h-pm-target-url')" class="bg-senor-primary hover:bg-senor-light text-white text-xs px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy Path</button>
+            </div>
+          </div>
+
+          <!-- SEO Metadata Atom Block -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 class="text-sm font-bold text-indigo-400 flex items-center gap-2">
+                <i class="fa-solid fa-tags"></i>
+                1. SEO Metadata Blocks / 搜尋引擎最佳化中繼標籤
+              </h3>
+              <span class="text-[10px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded font-mono font-bold">POST HEAD / SEO SCRIPT</span>
+            </div>
+
+            <div class="space-y-3">
+              <!-- Meta Title -->
+              <div>
+                <span class="text-[11px] text-slate-400 font-bold block mb-1">Meta Title Tag (Copy direct into Yoast SEO / RankMath)</span>
+                <div class="flex gap-2">
+                  <input id="h-meta-title" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 font-semibold" />
+                  <button onclick="copyHandoffField('h-meta-title')" class="bg-slate-800 hover:bg-slate-750 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+              </div>
+
+              <!-- Meta Description -->
+              <div>
+                <span class="text-[11px] text-slate-400 font-bold block mb-1">Meta Description (Snippet Intro)</span>
+                <div class="flex gap-2">
+                  <textarea id="h-meta-desc" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 font-semibold"></textarea>
+                  <button onclick="copyHandoffField('h-meta-desc')" class="bg-slate-800 hover:bg-slate-750 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap self-stretch flex items-center justify-center"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+              </div>
+
+              <!-- Focus Keywords -->
+              <div>
+                <span class="text-[11px] text-slate-400 font-bold block mb-1">Target Focus Keywords</span>
+                <div class="flex gap-2">
+                  <input id="h-meta-keywords" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300 font-semibold" />
+                  <button onclick="copyHandoffField('h-meta-keywords')" class="bg-slate-800 hover:bg-slate-750 text-xs text-slate-200 px-4 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HTML Header & Main Body Gutenberg Map -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 class="text-sm font-bold text-senor-light flex items-center gap-2">
+                <i class="fa-solid fa-layer-group"></i>
+                2. WordPress Gutenberg / Elementor Layout Map
+              </h3>
+              <span class="text-[10px] bg-senor-primary/20 border border-senor-primary/40 text-senor-light px-2 py-0.5 rounded font-mono font-bold">BODY CONTENT FLOW</span>
+            </div>
+
+            <!-- Block 1: [H1] Page Title -->
+            <div class="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-2">
+              <div class="flex justify-between items-center text-[10px] text-slate-500">
+                <span class="font-bold text-teal-400 uppercase tracking-widest"><i class="fa-solid fa-heading"></i> Block 1: H1 Page Title Widget</span>
+                <span class="font-mono">CSS: font-size: 2.25rem; font-weight: 800; line-height: 1.15;</span>
+              </div>
+              <div class="flex gap-2">
+                <input id="h-block-h1" readonly class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-white font-bold" />
+                <button onclick="copyHandoffField('h-block-h1')" class="bg-slate-800 hover:bg-slate-750 text-xs px-3 rounded-lg transition whitespace-nowrap"><i class="fa-solid fa-copy"></i> Copy</button>
+              </div>
+            </div>
+
+            <!-- Block 2: [H2] Intro & Features -->
+            <div class="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-2">
+              <div class="flex justify-between items-center text-[10px] text-slate-500">
+                <span class="font-bold text-indigo-400 uppercase tracking-widest"><i class="fa-solid fa-align-left"></i> Block 2: Rich Text Editor / Intro Blocks</span>
+                <span class="font-mono">Contains embedded focus keywords / 嵌入長尾關鍵字完成</span>
+              </div>
+              <div class="flex gap-2">
+                <textarea id="h-block-body" readonly rows="6" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 font-mono leading-relaxed font-semibold"></textarea>
+                <button onclick="copyHandoffField('h-block-body')" class="bg-slate-800 hover:bg-slate-750 text-xs px-3 rounded-lg transition whitespace-nowrap flex items-center justify-center"><i class="fa-solid fa-copy"></i> Copy</button>
+              </div>
+            </div>
+
+            <!-- Block 3: Recommended Solutions (For products pages only) -->
+            <div id="h-block-suited-wrapper" class="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-3">
+              <div class="flex justify-between items-center text-[10px] text-slate-500">
+                <span class="font-bold text-emerald-400 uppercase tracking-widest"><i class="fa-solid fa-network-wired"></i> Block 3: Solution Recommendation Card Widget</span>
+                <span class="font-mono">Grid Layout / Mapped Sitemap URLs</span>
+              </div>
+              <div class="space-y-2">
+                <div>
+                  <span class="text-[10px] text-slate-500">Section Header (H2 Element):</span>
+                  <input id="h-suited-title" readonly class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-slate-300 mb-2 font-bold" />
+                </div>
+                <div id="h-suited-items-list" class="space-y-2">
+                  <!-- Loaded dynamically inside handoff -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Block 4: Common Painpoints & Strengths (For solutions pages only) -->
+            <div id="h-block-pain-wrapper" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-2">
+                <span class="text-[10px] text-rose-400 uppercase font-bold block"><i class="fa-solid fa-ban"></i> Industry Painpoints (Bullets)</span>
+                <textarea id="h-painpoints" readonly rows="4" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-slate-300 font-mono font-semibold"></textarea>
+                <button onclick="copyHandoffField('h-painpoints')" class="w-full bg-slate-800 hover:bg-slate-750 text-xs py-1.5 rounded transition font-semibold"><i class="fa-solid fa-copy"></i> Copy List</button>
+              </div>
+              <div class="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-2">
+                <span class="text-[10px] text-emerald-400 uppercase font-bold block"><i class="fa-solid fa-shield-halved"></i> Senor Hardware Strengths (Bullets)</span>
+                <textarea id="h-features" readonly rows="4" class="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-slate-300 font-mono font-semibold"></textarea>
+                <button onclick="copyHandoffField('h-features')" class="w-full bg-slate-800 hover:bg-slate-750 text-xs py-1.5 rounded transition font-semibold"><i class="fa-solid fa-copy"></i> Copy List</button>
+              </div>
+            </div>
+
+            <!-- Block 5: FAQ Block (Except on category hubs) -->
+            <div id="h-block-faq-wrapper" class="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-3">
+              <div class="flex justify-between items-center text-[10px] text-slate-500">
+                <span class="font-bold text-sky-400 uppercase tracking-widest"><i class="fa-solid fa-circle-question"></i> Block 4: Accordion FAQ Element</span>
+                <span class="font-mono">JSON Schema bound answers / 提高AEO搜尋首位推薦率</span>
+              </div>
+              <div class="space-y-3">
+                <div class="bg-slate-900 border border-slate-850 rounded-lg p-2.5 space-y-2">
+                  <div>
+                    <span class="text-[9px] text-slate-500 block">Question 1:</span>
+                    <input id="h-faq1-q" readonly class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-300 font-bold" />
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-slate-500 block">Answer 1:</span>
+                    <textarea id="h-faq1-a" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-400 font-semibold"></textarea>
+                  </div>
+                  <button onclick="copyFAQBlock(1)" class="bg-slate-800 hover:bg-slate-750 text-[10px] px-3 py-1 rounded transition text-slate-300 font-semibold"><i class="fa-solid fa-copy"></i> Copy Q&A Pair</button>
+                </div>
+                
+                <div class="bg-slate-900 border border-slate-850 rounded-lg p-2.5 space-y-2">
+                  <div>
+                    <span class="text-[9px] text-slate-500 block">Question 2:</span>
+                    <input id="h-faq2-q" readonly class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-300 font-bold" />
+                  </div>
+                  <div>
+                    <span class="text-[9px] text-slate-500 block">Answer 2:</span>
+                    <textarea id="h-faq2-a" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded p-1.5 text-xs text-slate-400 font-semibold"></textarea>
+                  </div>
+                  <button onclick="copyFAQBlock(2)" class="bg-slate-800 hover:bg-slate-750 text-[10px] px-3 py-1 rounded transition text-slate-300 font-semibold"><i class="fa-solid fa-copy"></i> Copy Q&A Pair</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Boss-Approved Preview & Engineering Assets (老闆審核過的預覽畫面) -->
+        <div class="col-span-12 xl:col-span-5 space-y-6">
+          
+          <!-- Boss-Approved Live Preview Container (老闆審核過的預覽畫面) -->
+          <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl p-5 space-y-3 flex flex-col justify-between max-h-[70vh]">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+              <span class="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-circle-check animate-pulse text-emerald-400"></i>
+                Boss-Approved Page Layout / 老闆審核過的預覽畫面 (排版對標參考)
+              </span>
+              <span class="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">LOCKED PREVIEW</span>
+            </div>
+
+            <!-- Scrollable replica of the signed-off design -->
+            <div class="flex-1 overflow-y-auto soft-scrollbar bg-white text-slate-900 rounded-xl p-4 border border-slate-200 shadow-xl space-y-4 text-xs font-sans">
+              <div class="flex justify-between items-center border-b border-slate-200 pb-2 text-[10px] text-slate-500">
+                <div class="flex items-center gap-1">
+                  <span class="font-extrabold text-senor-dark uppercase tracking-widest text-xs">SENOR</span>
+                  <span class="bg-senor-primary text-white px-1 text-[8px] rounded font-bold">TECH</span>
+                </div>
+                <div class="flex gap-3 text-[9px] text-slate-600 font-semibold">
+                  <span>Products</span>
+                  <span>Solutions</span>
+                  <span>Support</span>
+                </div>
+              </div>
+
+              <!-- Output rendered by function loadHandoffData() -->
+              <div id="handoff-boss-preview-content" class="space-y-4">
+                <!-- Loaded dynamically on index select -->
+              </div>
+
+              <div class="border-t border-slate-200 pt-2 text-[8px] text-slate-400 flex justify-between">
+                <span>© 2026 Senor Tech Australia.</span>
+                <span class="font-mono text-slate-500" id="handoff-boss-preview-url">https://www.senortech.com.au/...</span>
+              </div>
+            </div>
+
+            <p class="text-[10px] text-slate-500 leading-normal">
+              <i class="fa-solid fa-circle-info mr-1"></i> Reference this layout preview above to replicate the exact block styling, headers, and element structure in WordPress / Gutenberg.
+            </p>
+          </div>
+
+          <!-- Schema JSON-LD -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-indigo-400 font-bold"><i class="fa-solid fa-code"></i> Schema.org (JSON-LD) tag</span>
+              <button onclick="copySchemaToClipboard()" class="bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 px-3 py-1 rounded-lg">Copy Tag</button>
+            </div>
+            <textarea id="handoff-schema" readonly rows="5" class="w-full bg-slate-950 border border-slate-850 rounded-xl p-3 text-xs font-mono text-emerald-400 focus:outline-none"></textarea>
+            <p class="text-[10px] text-slate-500 leading-normal">
+              Insert this script tag inside the header container of the page for semantic structured search prioritization.
+            </p>
+          </div>
+
+          <!-- Image Guidelines & Alt -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <span class="text-xs text-sky-400 font-bold"><i class="fa-solid fa-image"></i> Media Library Optimization</span>
+            <div class="p-3 bg-slate-950 rounded-xl space-y-3">
+              <div>
+                <span class="text-[10px] text-slate-500 block mb-1">Image Recommendation:</span>
+                <span id="handoff-suggestion" class="text-xs text-slate-300 font-medium">A hero photo...</span>
+              </div>
+              <hr class="border-slate-850" />
+              <div>
+                <span class="text-[10px] text-slate-500 block mb-1">SEO Image Alt Attribute:</span>
+                <div class="flex gap-2">
+                  <span id="handoff-alt" class="text-xs text-senor-light font-mono select-all flex-1 p-2 bg-slate-900 rounded border border-slate-800 leading-normal font-semibold">Loading...</span>
+                  <button onclick="copyTextElement('handoff-alt')" class="bg-slate-800 hover:bg-slate-750 text-xs px-3 rounded transition whitespace-nowrap self-stretch"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submission Hub (Report Deployed Node) -->
+          <div class="bg-teal-950/20 border border-teal-500/20 rounded-2xl p-5 space-y-4">
+            <div>
+              <h4 class="text-sm font-bold text-senor-light flex items-center gap-1.5">
+                <i class="fa-solid fa-cloud-arrow-up text-emerald-400"></i>
+                Sitemap Node Launch Registration
+              </h4>
+              <p class="text-xs text-slate-400 mt-1">Enter your final deployed URL. This will sync database states and update executive dashboard counts instantly.</p>
+            </div>
+            <div class="space-y-3">
+              <label class="block">
+                <span class="text-[10px] text-slate-400 font-bold">Live Deployed URL *</span>
+                <input id="liveUrlSubmitted" class="mt-1.5 w-full bg-slate-950 border border-slate-750 rounded-lg p-2.5 text-xs text-senor-light font-mono glow-border" />
+              </label>
+              <div class="block">
+                <span class="text-[10px] text-slate-400 font-bold">Upload WordPress Layout Screenshot *</span>
+                <div class="mt-1.5 flex gap-2">
+                  <button onclick="simulateUploadScreenshot()" class="w-full bg-slate-850 hover:bg-slate-800 text-slate-300 rounded-lg p-2.5 text-xs font-semibold border border-slate-700 transition">
+                    <i class="fa-solid fa-camera mr-1 text-senor-light"></i> <span id="btn-screenshot-text">Capture Screenshot</span>
+                  </button>
+                  <div id="screenshot-indicator" class="hidden w-11 h-11 bg-emerald-500/20 border border-emerald-400 text-emerald-400 flex items-center justify-center rounded-lg text-xs"><i class="fa-solid fa-check"></i></div>
+                </div>
+              </div>
+            </div>
+            <button onclick="submitHandoffCompleted()" class="w-full bg-senor-primary hover:bg-senor-light text-white rounded-xl py-3 text-xs font-bold transition shadow-lg">
+              Declare Node Live (Sitemap Deployed +1)
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- JS Control Engine -->
+  <script>
+    // Tab and view switches
+    function switchRole(role) {
+      const views = ['executive', 'pm', 'review', 'handoff'];
+      views.forEach(v => {
+        const viewEl = document.getElementById('view-' + v);
+        if (viewEl) viewEl.classList.toggle('hidden', v !== role);
+        const btn = document.getElementById('btn-' + v);
+        if (btn) {
+          btn.className = btn.className.replace('tab-active', 'tab-idle').replace(' text-white', '');
+          if (v === role) {
+            btn.classList.remove('tab-idle');
+            btn.classList.add('tab-active');
+          }
+        }
+      });
+      if (role === 'pm') {
+        renderHistoryArchiveTable();
+      }
+      if (role === 'handoff') {
+        renderHandoffTaskBoard();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Toggle sub-panels in PM workspace
+    function showPMPanel(panel) {
+      document.querySelectorAll('.pm-panel').forEach(el => el.classList.add('hidden'));
+      const activePanel = document.getElementById('pm-' + panel);
+      if (activePanel) activePanel.classList.remove('hidden');
+      if (panel === 'history') {
+        renderHistoryArchiveTable();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Dynamic field toggle based on selected content type
+    function toggleTypeForm() {
+      const type = document.getElementById('pageType').value;
+      
+      // Form Input switches
+      document.getElementById('type-fields-product').classList.toggle('hidden', type !== 'products');
+      document.getElementById('type-fields-solution').classList.toggle('hidden', type !== 'solutions');
+      document.getElementById('type-fields-category').classList.toggle('hidden', type !== 'category');
+
+      // Solution Directory input block toggle
+      document.getElementById('solution-subfolder-block').classList.toggle('hidden', type !== 'solutions');
+
+      // Form Editor Output switches
+      document.getElementById('out-suited-wrapper').classList.toggle('hidden', type !== 'products');
+      document.getElementById('out-solution-wrapper').classList.toggle('hidden', type !== 'solutions');
+      document.getElementById('out-category-wrapper').classList.toggle('hidden', type !== 'category');
+      
+      // Hide FAQs on category pages strictly
+      document.getElementById('pm-faq-editor-block').classList.toggle('hidden', type === 'category');
+      document.getElementById('rev-faq-editor-block').classList.toggle('hidden', type === 'category');
+
+      // Executive Review switches
+      document.getElementById('rev-suited-block').classList.toggle('hidden', type !== 'products');
+      document.getElementById('rev-solution-block').classList.toggle('hidden', type !== 'solutions');
+      document.getElementById('rev-category-block').classList.toggle('hidden', type !== 'category');
+      
+      state.activeTask.pageType = type;
+    }
+
+    // Load spec data dynamically from local mock database
+    function loadDifyDocInfo() {
+      const selectedDocKey = document.getElementById('difyDocument').value;
+      const fileData = difyFiles[selectedDocKey];
+      if (fileData) {
+        document.getElementById('dify-preview-cpu').innerHTML = `<span class="text-slate-500 font-semibold">CPU Architecture:</span> <span class="text-emerald-400 font-bold font-mono">${fileData.specs.cpu}</span>`;
+        document.getElementById('dify-preview-waterproof').innerHTML = `<span class="text-slate-500 font-semibold">Ingress Seal:</span> <span class="text-emerald-400 font-bold font-mono">${fileData.specs.waterproof}</span>`;
+      }
+    }
+
+    // Dynamic URL generator (Determined base root, adjustable subdirectory and slug)
+    function updateUrl() {
+      const pageType = document.getElementById('pageType').value;
+      let pageName = document.getElementById('pageName').value.trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-_]/g, '');
+
+      let finalDirectory = "/products/";
+      
+      if (pageType === 'solutions') {
+        // Variable subfolders path configured dynamically by PM
+        let subDir = document.getElementById('solutionSubfolder').value.trim()
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-_/]/g, ''); // Allow slash for multi-depth directory structures
+        
+        finalDirectory = `/solutions/${subDir}/`;
+      } else if (pageType === 'category') {
+        finalDirectory = `/product-category/`;
+      }
+
+      document.getElementById('pageName').value = pageName;
+      const combinedRelativePath = finalDirectory + pageName + `/`;
+      document.getElementById('fullUrl').value = `https://www.senortech.com.au` + combinedRelativePath;
+      
+      state.activeTask.pageName = pageName;
+      state.activeTask.solutionSubfolder = document.getElementById('solutionSubfolder').value;
+    }
+
+    function updateKeywordCount() {
+      const inputs = [...document.querySelectorAll('.keywordInput')];
+      const count = inputs.filter(i => i.value.trim()).length;
+      const countEl = document.getElementById('keywordCount');
+      if (countEl) {
+        countEl.textContent = `${count} / 3`;
+        countEl.className = (count < 1 || count > 3) ? "text-xs text-rose-400 font-bold" : "text-xs text-senor-light font-bold";
+      }
+    }
+
+    function addKnowledgeSource() {
+      const wrap = document.getElementById('kbSources');
+      const row = document.createElement('div');
+      row.className = 'grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-3';
+      row.innerHTML = `
+        <select class="bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs text-slate-300">
+          <option>Competitor Sitemap URL Reference</option>
+          <option>Cloud Folder Link / Google Drive</option>
+          <option>Manual Engineering Notes</option>
+        </select>
+        <input placeholder="Paste direct reference URL or notes." class="bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs text-slate-300" />
+        <button onclick="this.parentElement.remove()" class="bg-slate-800 hover:bg-rose-600 rounded-xl px-3 text-xs transition">Remove</button>
+      `;
+      wrap.appendChild(row);
+    }
+
+    // Dynamic word limit monitor
+    function updateWordRangeLabel() {
+      const value = document.getElementById('targetWordCount').value;
+      document.getElementById('wordCountLabel').textContent = `${value} Words Target`;
+      state.activeTask.targetWordCount = parseInt(value);
+    }
+
+    // Multi-select Solutions Checkbox Handler (Can support 1-3 Solution mappings)
+    function updateSolutionCheckboxSelection() {
+      const checkboxes = ['check-kds', 'check-retail', 'check-logistics'];
+      let selectedIds = [];
+      checkboxes.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb && cb.checked) {
+          selectedIds.push(cb.value);
+        }
+      });
+
+      // Constraint verification
+      if (selectedIds.length === 0) {
+        document.getElementById('check-kds').checked = true;
+        selectedIds = ["kds"];
+        showNotification("Verification Constraint", "Sitemap guidelines require linking at least 1 valid Solution path.", "error");
+      }
+
+      state.activeTask.selectedSolutionIds = selectedIds;
+      document.getElementById('checked-count').textContent = selectedIds.length;
+
+      // Extract suited solutions package
+      let suitedList = [];
+      selectedIds.forEach(id => {
+        const found = solutionsDatabase.find(s => s.id === id);
+        if (found) {
+          suitedList.push({ name: found.name, url: found.url, brief: found.brief });
+        }
+      });
+      state.activeTask.generatedData.suitedSolutions = suitedList;
+
+      renderSuitedSolutionsList();
+    }
+
+    function renderSuitedSolutionsList() {
+      const list = state.activeTask.generatedData.suitedSolutions;
+      const container = document.getElementById('out-suited-mapped-list');
+      const reviewContainer = document.getElementById('rev-suited-list');
+      
+      let html = "";
+      let revHtml = "";
+
+      list.forEach((sol, index) => {
+        html += `
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+            <p class="text-xs font-bold text-senor-light">Link #${index + 1}: ${sol.name}</p>
+            <p class="text-[11px] font-mono text-slate-400 select-all font-semibold">${sol.url}</p>
+            <p class="text-[11px] text-slate-300 italic">Brief: "${sol.brief}"</p>
+          </div>
+        `;
+        revHtml += `
+          <div class="text-[11px] text-slate-300 border-l-2 border-senor-primary pl-2 py-1">
+            <span class="font-bold text-teal-400">${sol.name}</span> (${sol.url})
+          </div>
+        `;
+      });
+
+      if (container) container.innerHTML = html;
+      if (reviewContainer) reviewContainer.innerHTML = revHtml;
+    }
+
+    // AI simulated generation with keyword layout injection (PM產生資料後的預覽跟編輯功能)
+    function triggerDifyGeneration() {
+      updateUrl();
+      updateKeywordCount();
+      
+      // Inject dummy loader inside form area
+      showNotification("Dify Engine Connecting", "Fetching spec guidelines and initiating NLP parser...", "info");
+      
+      const selectedDocKey = document.getElementById('difyDocument').value;
+      const fileData = difyFiles[selectedDocKey];
+      const targetCount = state.activeTask.targetWordCount;
+
+      // Build out-live-sync pre-flight progress load
+      setTimeout(() => {
+        generatePrepopulatedContent(selectedDocKey);
+      }, 1000);
+    }
+
+    // Prepopulate B2B English Copy Layout Pack (purely in English)
+    function generatePrepopulatedContent(docKey) {
+      const type = document.getElementById('pageType').value;
+      const fileData = difyFiles[docKey];
+      const g = state.activeTask.generatedData;
+      const targetCount = state.activeTask.targetWordCount;
+
+      // Extract current keywords
+      const focusKeywords = [
+        document.getElementById('kw1').value || "IP65 Rated POS Terminal",
+        document.getElementById('kw2').value || "Kitchen Proof POS System",
+        document.getElementById('kw3').value || "High-Temp Kitchen POS"
+      ];
+
+      let extensionSentence = targetCount >= 600 ? " For Australian hospitality and kitchen automation setups, heavy-duty deployment helps bypass major structural blockages." : "";
+
+      if (type === 'products') {
+        g.mainTitle = `[H1] Senor POS Waterproof Frame: High Reliability Terminal Powered by ${fileData.specs.cpu.split('(')[0]}`;
+        g.mainIntro = `[H2] Resisting Constant High Grease and Moisture with the Premium ${focusKeywords[0]}\n\n[H3] Zero Ingress Heavy-Duty Casing\nAustralian food prep spaces demand heavy high-temp resistance. This ${focusKeywords[1]} utilizes Senor's premium ${fileData.specs.chassis} preventing flour dust, grease, and moisture build-ups inside the circuits.${extensionSentence}\n\n[H3] Rich Australian Connection Ports\nOur engineered ${focusKeywords[2]} features ${fileData.specs.io} allowing quick receipt printing mapping and double checkout screen routing without single lagging delays.`;
+        
+        g.metaTitle = `Senor POS Hardware | Premium ${focusKeywords[0]}`;
+        g.metaKeywords = focusKeywords.join(", ");
+        g.metaDescription = `Acquire the premier ${focusKeywords[1]} for demanding commercial prep bays. Featuring advanced ${fileData.specs.chassis} and IP65 Front Bezel seals to block hot grease, oil, and water splashes.`;
+
+        g.suitedTitle = `[H2] Suited Scenario Configuration Index:`;
+        g.altText = `Robust Senor POS hardware terminal standing operating smoothly in busy commercial kitchen showing orders.`;
+        g.imageSuggestion = `A premium close-up of a fanless terminal placed on a stainless steel commercial kitchen counter with steam rising in the background.`;
+      } else if (type === 'solutions') {
+        g.mainTitle = `[H1] Specialized Robust ${focusKeywords[0]} Systems for High-Traffic Australian Dining Venues`;
+        g.mainIntro = `[H2] Solving Food Service Outages and Communication Lags under Peak Operational Shifts\n\n[H3] Fully Integrated ${focusKeywords[1]} Configurations\nOur specialized hospitality solutions are designed explicitly to lower restaurant hardware downtimes. By implementing fanless touchscreen computer frames, food preparation workflows speed up by 30% while securing zero internal dust accumulation.${extensionSentence}\n\n[H3] Heavy-Duty Moisture Protective Terminals Built as ${focusKeywords[2]}\nChefs can rely on stable touchscreen panel controllers that operate smoothly even under heavy hot steam environment and direct gloved-hands control.`;
+        
+        g.metaTitle = `Hospitality Kitchen Management & ${focusKeywords[0]} Solutions | Senor Tech`;
+        g.metaKeywords = focusKeywords.join(", ");
+        g.metaDescription = `Equip your busy fast-casual lines with commercial-grade ${focusKeywords[1]} monitors. Specifically certified to perform inside demanding hot kitchen environments.`;
+
+        g.painPoints = [
+          "Frequent system failures triggered by heavy oil accumulation on circuit components.",
+          "Touch panel signal lag caused by hot kitchen humidity and chefs' wet-finger touches."
+        ];
+        g.solutionFeatures = [
+          `Commercial ${fileData.specs.waterproof || "IP66 waterproof design"} layout supporting reliable wet-hand touchscreen commands.`,
+          `High-efficiency fanless ${fileData.specs.chassis} dissipating heat smoothly without grease build-up.`
+        ];
+      } else if (type === 'category') {
+        // Purely title & introduction without FAQs/product grid elements
+        g.categoryHeading = `[H1] Commercial-Grade ${focusKeywords[0]} and Heavy-Duty Touch Catalog`;
+        g.categoryIntro = `[H2] Durable POS Terminal Class Customized for Extreme B2B Applications\n\n[H3] Certified Enterprise Configurations for Australia\nExplore Senor Tech's masterfully engineered line of POS Systems and touch monitors built with premium ${fileData.specs.cpu}. Every device features fanless thermodynamic casings to protect operations across restaurants, retail centers, and factories.`;
+        
+        g.metaTitle = `Rugged ${focusKeywords[0]} Product Class | Senor Tech Australia`;
+        g.metaKeywords = focusKeywords.join(", ");
+        g.metaDescription = `Browse Australia's premier line of robust ${focusKeywords[1]} hardware catalog designed for restaurants and commercial environments.`;
+      }
+
+      updateSolutionCheckboxSelection();
+      fillPMFormFields();
+
+      document.getElementById('generatedOutput').classList.remove('hidden');
+      document.getElementById('generatedOutput').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      renderWebPreview();
+      showNotification("Asset Washed Successfully", "PDF Specifications verified. Pure English AEO copy compiled with embedded keywords.", "success");
+    }
+
+    // Sync state to PM form fields
+    function fillPMFormFields() {
+      const g = state.activeTask.generatedData;
+      document.getElementById('out-mainTitle').value = g.mainTitle || "";
+      document.getElementById('out-mainIntro').value = g.mainIntro || "";
+      
+      document.getElementById('out-metaTitle').value = g.metaTitle || "";
+      document.getElementById('out-metaKeywords').value = g.metaKeywords || "";
+      document.getElementById('out-metaDescription').value = g.metaDescription || "";
+
+      document.getElementById('out-suitedTitle').value = g.suitedTitle || "";
+
+      document.getElementById('out-painpoints').value = g.painPoints ? g.painPoints.join('\n') : "";
+      document.getElementById('out-solutionFeatures').value = g.solutionFeatures ? g.solutionFeatures.join('\n') : "";
+
+      document.getElementById('out-categoryHeading').value = g.categoryHeading || "";
+      document.getElementById('out-categoryIntro').value = g.categoryIntro || "";
+
+      if (g.faqs && g.faqs[0]) {
+        document.getElementById('out-faq1-q').value = g.faqs[0].q || "";
+        document.getElementById('out-faq1-a').value = g.faqs[0].a || "";
+      }
+      if (g.faqs && g.faqs[1]) {
+        document.getElementById('out-faq2-q').value = g.faqs[1].q || "";
+        document.getElementById('out-faq2-a').value = g.faqs[1].a || "";
+      }
+
+      document.getElementById('out-altText').value = g.altText || "";
+      document.getElementById('out-imageSuggestion').value = g.imageSuggestion || "";
+    }
+
+    // Sync from PM editor inputs to buffer
+    function syncPMToDraft() {
+      const g = state.activeTask.generatedData;
+      g.mainTitle = document.getElementById('out-mainTitle').value;
+      g.mainIntro = document.getElementById('out-mainIntro').value;
+      
+      g.metaTitle = document.getElementById('out-metaTitle').value;
+      g.metaKeywords = document.getElementById('out-metaKeywords').value;
+      g.metaDescription = document.getElementById('out-metaDescription').value;
+
+      g.suitedTitle = document.getElementById('out-suitedTitle').value;
+      
+      if (document.getElementById('out-painpoints').value) {
+        g.painPoints = document.getElementById('out-painpoints').value.split('\n');
+      }
+      if (document.getElementById('out-solutionFeatures').value) {
+        g.solutionFeatures = document.getElementById('out-solutionFeatures').value.split('\n');
+      }
+
+      g.categoryHeading = document.getElementById('out-categoryHeading').value;
+      g.categoryIntro = document.getElementById('out-categoryIntro').value;
+
+      if (!g.faqs) g.faqs = [{q: "", a: ""}, {q: "", a: ""}];
+      g.faqs[0].q = document.getElementById('out-faq1-q').value;
+      g.faqs[0].a = document.getElementById('out-faq1-a').value;
+      g.faqs[1].q = document.getElementById('out-faq2-q').value;
+      g.faqs[1].a = document.getElementById('out-faq2-a').value;
+
+      g.altText = document.getElementById('out-altText').value;
+      g.imageSuggestion = document.getElementById('out-imageSuggestion').value;
+
+      renderWebPreview();
+    }
+
+    // Boss Visual Optimization toggles (Collapsible Left column, large readable right column)
+    function toggleReviewEditorCollapse() {
+      const editorCol = document.getElementById('review-editor-column');
+      const previewCol = document.getElementById('review-preview-column');
+      const btn = document.getElementById('btn-toggle-editor');
+
+      state.isReviewEditorCollapsed = !state.isReviewEditorCollapsed;
+
+      if (state.isReviewEditorCollapsed) {
+        editorCol.classList.add('hidden');
+        previewCol.className = "col-span-12 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between max-h-[75vh]";
+        btn.textContent = "[+] Expand Editor";
+      } else {
+        editorCol.classList.remove('hidden');
+        editorCol.className = "col-span-12 xl:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 max-h-[75vh] overflow-y-auto soft-scrollbar block transition-all duration-300";
+        previewCol.className = "col-span-12 xl:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between max-h-[75vh]";
+        btn.textContent = "[-] Collapse Editor";
+      }
+    }
+
+    function togglePresbyopiaZoom() {
+      const contentBox = document.getElementById('sim-main-content-scroll');
+      const btn = document.getElementById('btn-toggle-zoom');
+
+      state.bossLargeTextMode = !state.bossLargeTextMode;
+
+      if (state.bossLargeTextMode) {
+        contentBox.classList.add('boss-large-text');
+        btn.textContent = "Presbyopia Zoom: Active (130%)";
+        btn.className = "bg-senor-primary/40 text-teal-300 border border-teal-500/30 px-3 py-1.5 rounded-lg transition font-mono font-semibold";
+      } else {
+        contentBox.classList.remove('boss-large-text');
+        btn.textContent = "Presbyopia Zoom: Off (100%)";
+        btn.className = "bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg transition font-mono font-semibold";
+      }
+    }
+
+    // Lock draft and push to executive review
+    function submitDraftToReview() {
+      syncPMToDraft();
+      fillReviewFormFields();
+      renderWebPreview();
+      
+      // Save a revision record on review submit
+      logRevisionHistory("Submission / 提送審核", "Washed specifications package forwarded to Executive terminal.");
+
+      // Push draft to master Approved queue to simulate page-by-page review indexing
+      const currentTaskCopy = JSON.parse(JSON.stringify(state.activeTask));
+      state.approvedPagesList.push(currentTaskCopy);
+      renderHandoffTaskBoard();
+
+      showNotification("Task Submitted", "B2B copy transferred to Executive Approval. Connection state verified.", "success");
+      switchRole('review');
+    }
+
+    function submitToReviewDirectly() {
+      fillReviewFormFields();
+      renderWebPreview();
+      showNotification("Direct Routing", "Switching immediately to Boss verification panel.", "info");
+      switchRole('review');
+    }
+
+    // Launch review for designated page classification
+    function startReview(type) {
+      document.getElementById('pageType').value = type;
+      toggleTypeForm();
+      fillReviewFormFields();
+      renderWebPreview();
+      switchRole('review');
+    }
+
+    // Populate approver fields
+    function fillReviewFormFields() {
+      const g = state.activeTask.generatedData;
+      document.getElementById('rev-mainTitle').value = g.mainTitle || "";
+      document.getElementById('rev-mainIntro').value = g.mainIntro || "";
+      
+      document.getElementById('rev-metaTitle').value = g.metaTitle || "";
+      document.getElementById('rev-metaKeywords').value = g.metaKeywords || "";
+      document.getElementById('rev-metaDescription').value = g.metaDescription || "";
+
+      document.getElementById('rev-suitedTitle').value = g.suitedTitle || "";
+
+      document.getElementById('rev-painpoints').value = g.painPoints ? g.painPoints.join('\n') : "";
+      document.getElementById('rev-solutionFeatures').value = g.solutionFeatures ? g.solutionFeatures.join('\n') : "";
+
+      document.getElementById('rev-categoryHeading').value = g.categoryHeading || "";
+      document.getElementById('rev-categoryIntro').value = g.categoryIntro || "";
+
+      if (g.faqs && g.faqs[0]) {
+        document.getElementById('rev-faq1-q').value = g.faqs[0].q || "";
+        document.getElementById('rev-faq1-a').value = g.faqs[0].a || "";
+      }
+      if (g.faqs && g.faqs[1]) {
+        document.getElementById('rev-faq2-q').value = g.faqs[1].q || "";
+        document.getElementById('rev-faq2-a').value = g.faqs[1].a || "";
+      }
+    }
+
+    // Sync changes from review editor fields to draft
+    function syncReviewToDraft() {
+      const g = state.activeTask.generatedData;
+      g.mainTitle = document.getElementById('rev-mainTitle').value;
+      g.mainIntro = document.getElementById('rev-mainIntro').value;
+
+      g.metaTitle = document.getElementById('rev-metaTitle').value;
+      g.metaKeywords = document.getElementById('rev-metaKeywords').value;
+      g.metaDescription = document.getElementById('rev-metaDescription').value;
+
+      g.suitedTitle = document.getElementById('rev-suitedTitle').value;
+
+      g.painPoints = document.getElementById('rev-painpoints').value.split('\n').map(s => s.trim());
+      g.solutionFeatures = document.getElementById('rev-solutionFeatures').value.split('\n').map(s => s.trim());
+
+      g.categoryHeading = document.getElementById('rev-categoryHeading').value;
+      g.categoryIntro = document.getElementById('rev-categoryIntro').value;
+
+      if (!g.faqs) g.faqs = [{q: "", a: ""}, {q: "", a: ""}];
+      g.faqs[0].q = document.getElementById('rev-faq1-q').value;
+      g.faqs[0].a = document.getElementById('rev-faq1-a').value;
+      g.faqs[1].q = document.getElementById('rev-faq2-q').value;
+      g.faqs[1].a = document.getElementById('rev-faq2-a').value;
+
+      renderWebPreview();
+    }
+
+    // Web Rendering Framework (Matches senortech.com.au layout scheme)
+    function renderWebPreview() {
+      const g = state.activeTask.generatedData;
+      const type = state.activeTask.pageType;
+      
+      let finalDirectory = "/products/";
+      if (type === 'solutions') {
+        let subDir = document.getElementById('solutionSubfolder').value.trim().toLowerCase();
+        finalDirectory = `/solutions/${subDir}/`;
+      } else if (type === 'category') {
+        finalDirectory = `/product-category/`;
+      }
+
+      const relativeLaunchPath = finalDirectory + state.activeTask.pageName + `/`;
+      const absoluteLaunchUrl = `https://www.senortech.com.au` + relativeLaunchPath;
+
+      // Update URL indicators
+      const revUrlNode = document.getElementById('sim-live-url_rev');
+      if (revUrlNode) revUrlNode.textContent = absoluteLaunchUrl;
+
+      // Update Google Snippet
+      const revGTitle = document.getElementById('sim-google-title-review');
+      if (revGTitle) revGTitle.textContent = g.metaTitle || "Senor Tech | Waterproof Commercial POS";
+      const revGDesc = document.getElementById('sim-google-desc-review');
+      if (revGDesc) revGDesc.textContent = g.metaDescription || "Acquire rugged touch hardware designed to withstand commercial cooking lines.";
+
+      function cleanH(str, tag, replacement) {
+        if (!str) return "";
+        return str.replace(tag, replacement);
+      }
+
+      let innerHtml = "";
+
+      // 1. PRODUCTS VIEW
+      if (type === 'products') {
+        let solutionsHtml = "";
+        if (g.suitedSolutions && g.suitedSolutions.length > 0) {
+          g.suitedSolutions.forEach(sol => {
+            solutionsHtml += `
+              <div class="p-4 bg-emerald-50/80 border-l-4 border-senor-primary rounded-r-lg space-y-1 mt-2">
+                <p class="text-xs font-bold text-senor-dark flex items-center gap-1.5">
+                  <i class="fa-solid fa-square-check text-senor-primary"></i> Target Solution: ${sol.name}
+                </p>
+                <p class="text-[11px] text-slate-600 leading-relaxed">${sol.brief}</p>
+                <div class="pt-1 text-right">
+                  <span class="text-[10px] text-senor-primary font-bold hover:underline cursor-pointer">
+                    View Solution Specifications <i class="fa-solid fa-arrow-right ml-1"></i>
+                  </span>
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        innerHtml = `
+          <div class="space-y-4 text-slate-900">
+            <span class="text-[9px] bg-senor-primary text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">PRODUCT PORTFOLIO</span>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
+            
+            <div class="text-xs leading-relaxed text-slate-700 space-y-3">
+              ${g.mainIntro
+                .replace('[H2]', '<h2 class="text-base font-bold text-slate-800 mt-3">')
+                .replace('[H3]', '<h3 class="text-xs font-bold text-senor-primary uppercase mt-2">')
+                .replace(/\[H3\]/g, '<h3 class="text-xs font-bold text-senor-primary uppercase mt-2">')
+                .replace(/\n\n/g, '<br/>')
+              }
+            </div>
+
+            <!-- Mapped Solutions -->
+            <div class="pt-2 space-y-1">
+              <h3 class="text-xs font-extrabold text-slate-900 tracking-wide uppercase">${cleanH(g.suitedTitle, '[H2]', '')}</h3>
+              <div class="space-y-2">
+                ${solutionsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      } 
+      // 2. SOLUTIONS VIEW
+      else if (type === 'solutions') {
+        let painList = g.painPoints ? g.painPoints.map(p => `<li class="flex items-start gap-1.5"><i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0"></i> <span>${p}</span></li>`).join('') : "";
+        let featureList = g.solutionFeatures ? g.solutionFeatures.map(f => `<li class="flex items-start gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i> <span>${f}</span></li>`).join('') : "";
+
+        innerHtml = `
+          <div class="space-y-4 text-slate-900">
+            <span class="text-[9px] bg-indigo-900 text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">ENTERPRISE SOLUTION</span>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
+            <p class="text-xs leading-relaxed text-slate-600">${g.mainIntro.replace('[H2]', '').replace('[H3]', '<br/><br/>').replace(/\[H3\]/g, '<br/><br/>')}</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-[11px]">
+              <div class="p-3 bg-rose-50 border border-rose-100 rounded-xl">
+                <p class="font-bold text-rose-950 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-circle-exclamation"></i> Common Hazards Solved</p>
+                <ul class="space-y-2 text-slate-600 leading-relaxed">${painList}</ul>
+              </div>
+              <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                <p class="font-bold text-emerald-950 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-shield-halved"></i> Senor Hardware Measures</p>
+                <ul class="space-y-2 text-slate-600 leading-relaxed">${featureList}</ul>
+              </div>
+            </div>
+          </div>
+        `;
+      } 
+      // 3. CATEGORY VIEW
+      else if (type === 'category') {
+        innerHtml = `
+          <div class="space-y-4 text-slate-900">
+            <span class="text-[9px] bg-emerald-900 text-white px-2 py-0.5 rounded font-extrabold uppercase tracking-widest">PRODUCT CATEGORY</span>
+            
+            <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl mt-2 space-y-2">
+              <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-1.5">
+                <i class="fa-solid fa-boxes-stacked text-senor-primary"></i>
+                ${cleanH(g.categoryHeading, '[H1]', '')}
+              </h2>
+              <p class="text-xs leading-relaxed text-slate-600">${g.categoryIntro}</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // FAQ section strictly hidden for Category type
+      let faqHTML = "";
+      if (type !== 'category') {
+        faqHTML = `
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-150 mt-4 space-y-3 text-xs text-slate-900">
+            <p class="font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2 font-bold">
+              <i class="fa-solid fa-circle-question text-senor-primary"></i> FAQ / AI Answer Optimization Index
+            </p>
+            <div class="space-y-3">
+              <div>
+                <p class="font-bold text-slate-900 font-bold">Q: ${g.faqs && g.faqs[0] ? g.faqs[0].q : ""}</p>
+                <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">A: ${g.faqs && g.faqs[0] ? g.faqs[0].a : ""}</p>
+              </div>
+              <div class="border-t border-slate-200/60 pt-3">
+                <p class="font-bold text-slate-900 font-bold">Q: ${g.faqs && g.faqs[1] ? g.faqs[1].q : ""}</p>
+                <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">A: ${g.faqs && g.faqs[1] ? g.faqs[1].a : ""}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const pmSim = document.getElementById('pm-sim-main');
+      if (pmSim) pmSim.innerHTML = innerHtml + faqHTML;
+      const revSim = document.getElementById('sim-main-content');
+      if (revSim) revSim.innerHTML = innerHtml + faqHTML;
+    }
+
+    // Task rejection handler
+    function rejectActiveTask() {
+      const notes = document.getElementById('rev-approverNotes').value.trim();
+      if (!notes) {
+        showNotification("approver note required", "Please state reasons inside the Executive Instructions panel before requesting a revision.", "error");
+        return;
+      }
+      state.revisionCount++;
+      state.approvalsPending--;
+      
+      document.getElementById('stat-pending').textContent = state.approvalsPending;
+      document.getElementById('stat-returned').textContent = state.revisionCount;
+      
+      // Log historical rejection event
+      logRevisionHistory("Revision Requested / 提修退回", `Boss requested fix: "${notes}"`);
+
+      showNotification("revision requested", `Task returned to PM: "${notes}"`, "info");
+      switchRole('executive');
+    }
+
+    // Task approval handler (Supabase push)
+    function approveActiveTask() {
+      state.submittedToDesign++;
+      state.approvalsPending--;
+      
+      document.getElementById('stat-pending').textContent = state.approvalsPending;
+      document.getElementById('stat-handoff').textContent = state.submittedToDesign;
+
+      // Sync approved sitemap item
+      const approvedTaskCopy = JSON.parse(JSON.stringify(state.activeTask));
+      approvedTaskCopy.status = "Approved";
+      state.approvedPagesList.push(approvedTaskCopy);
+      
+      // Log historical approval
+      logRevisionHistory("Executive Sign-off / 核准上線", "Approved and committed to handoff layout dashboard.");
+
+      renderHandoffTaskBoard();
+
+      // Load final approved item to handoff screen index
+      enterDesignerWorkbench(state.approvedPagesList.length - 1);
+
+      showNotification("approved & delivered", "Content locked and delivered to handoff platform.", "success");
+      
+      // Save approval status back to database if Supabase initialized
+      saveApprovalToSupabase(approvedTaskCopy);
+
+      switchRole('handoff');
+    }
+
+    // DESIGNER: Render list of approved pending files (待處理的檔案列表)
+    function renderHandoffTaskBoard() {
+      const taskBoard = document.getElementById('handoff-task-board');
+      if (!taskBoard) return;
+      taskBoard.innerHTML = "";
+
+      const pendingList = state.approvedPagesList.filter(p => p.status !== "Completed");
+      
+      if (pendingList.length === 0) {
+        taskBoard.innerHTML = `
+          <div class="col-span-2 bg-slate-950 p-6 rounded-xl border border-slate-800 text-center text-slate-500">
+            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-700"></i>
+            <p class="text-xs">No pending approved pages. All sitemap nodes are successfully deployed!</p>
+          </div>
+        `;
+        document.getElementById('handoff-pending-count').textContent = 0;
+        return;
+      }
+
+      document.getElementById('handoff-pending-count').textContent = pendingList.length;
+
+      // Render each approved sitemap node page-by-page (一頁一頁待處理列表)
+      state.approvedPagesList.forEach((task, index) => {
+        // Skip already completed ones from the visual board if desired, but we display all status for debugging
+        const isCompleted = task.status === "Completed";
+        const badgeColor = isCompleted ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30";
+        const btnText = isCompleted ? "Review Live Layout" : "Enter Workbench / 進入製作工作台";
+        const btnColor = isCompleted ? "bg-slate-800 hover:bg-slate-700" : "bg-senor-primary hover:bg-senor-light text-white";
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-950 border border-slate-850 rounded-xl p-4 space-y-3 hover:border-senor-light transition-all";
+        card.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-[9px] px-2 py-0.5 rounded-full border ${badgeColor} font-mono font-bold uppercase">${task.pageType}</span>
+              <h4 class="text-xs font-bold text-white mt-1.5">${task.projectName}</h4>
+            </div>
+            <span class="text-[10px] text-slate-500 font-mono">#page-${index}</span>
+          </div>
+          <div class="space-y-1 text-[11px] text-slate-400">
+            <p><span class="text-slate-500 font-semibold">Slug:</span> <span class="font-mono text-senor-light">/${task.pageName}/</span></p>
+            <p><span class="text-slate-500 font-semibold">Focus Key:</span> ${task.keywords ? task.keywords[0] : "General Spec"}</p>
+          </div>
+          <div class="pt-2 border-t border-slate-900 flex justify-between items-center">
+            <span class="text-[10px] text-slate-500">Status: <strong class="text-slate-300 font-semibold">${task.status}</strong></span>
+            <button onclick="enterDesignerWorkbench(${index})" class="${btnColor} px-3 py-1.5 rounded text-xs font-semibold transition">
+              ${btnText} <i class="fa-solid fa-chevron-right ml-1"></i>
+            </button>
+          </div>
+        `;
+        taskBoard.appendChild(card);
+      });
+    }
+
+    // Enter detailed workbench view for a specific task page (設計師進入每一個待處理頁面時)
+    function enterDesignerWorkbench(index) {
+      state.selectedHandoffIndex = index;
+      const targetPage = state.approvedPagesList[index];
+      if (!targetPage) return;
+
+      // Reveal workbench panel
+      document.getElementById('designer-workbench-container').classList.remove('hidden');
+      document.getElementById('designer-workbench-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Load static data
+      document.getElementById('handoff-active-title').textContent = `${targetPage.projectName}`;
+      
+      // PM-Configured Production URL Address (PM已設定網址的欄位)
+      let finalDirectory = "/products/";
+      if (targetPage.pageType === 'solutions') {
+        finalDirectory = `/solutions/${targetPage.solutionSubfolder.trim().toLowerCase()}/`;
+      } else if (targetPage.pageType === 'category') {
+        finalDirectory = `/product-category/`;
+      }
+      const fullUrlValue = `https://www.senortech.com.au` + finalDirectory + targetPage.pageName + `/`;
+      document.getElementById('h-pm-target-url').value = fullUrlValue;
+      document.getElementById('liveUrlSubmitted').value = fullUrlValue;
+
+      // Render Boss-Approved Layout Preview (老闆審核過的預覽畫面)
+      const g = targetPage.generatedData;
+      document.getElementById('handoff-boss-preview-url').textContent = fullUrlValue;
+      
+      let htmlOutput = "";
+      function cleanH(str, tag, replacement) {
+        if (!str) return "";
+        return str.replace(tag, replacement);
+      }
+
+      if (targetPage.pageType === 'products') {
+        let solutionsHtml = "";
+        if (g.suitedSolutions) {
+          g.suitedSolutions.forEach(sol => {
+            solutionsHtml += `
+              <div class="p-2 bg-emerald-50 border-l-2 border-senor-primary rounded-r mt-1">
+                <p class="font-bold text-[10px] text-senor-dark">Mapped Target Solution: ${sol.name}</p>
+                <p class="text-[9px] text-slate-600 leading-normal">${sol.brief}</p>
+              </div>
+            `;
+          });
+        }
+
+        htmlOutput = `
+          <div class="space-y-2 text-slate-900 font-sans">
+            <span class="text-[8px] bg-senor-primary text-white px-2 py-0.5 rounded font-extrabold uppercase">PRODUCT PORTFOLIO</span>
+            <h1 class="text-base font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
+            <p class="text-[11px] leading-relaxed text-slate-700">${cleanH(g.mainIntro, '[H2]', '').replace(/\[H3\]/g, '').replace(/\n/g, '<br/>')}</p>
+            <div class="pt-1">
+              <span class="font-bold text-[10px] uppercase text-slate-800">${cleanH(g.suitedTitle, '[H2]', '')}</span>
+              ${solutionsHtml}
+            </div>
+          </div>
+        `;
+      } else if (targetPage.pageType === 'solutions') {
+        let painList = g.painPoints ? g.painPoints.map(p => `<li class="flex items-start gap-1"><i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0"></i> <span>${p}</span></li>`).join('') : "";
+        let featureList = g.solutionFeatures ? g.solutionFeatures.map(f => `<li class="flex items-start gap-1"><i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i> <span>${f}</span></li>`).join('') : "";
+
+        htmlOutput = `
+          <div class="space-y-2 text-slate-900 font-sans">
+            <span class="text-[8px] bg-indigo-900 text-white px-2 py-0.5 rounded font-extrabold uppercase">ENTERPRISE SOLUTION</span>
+            <h1 class="text-base font-extrabold text-slate-900 tracking-tight leading-tight">${cleanH(g.mainTitle, '[H1]', '')}</h1>
+            <p class="text-[11px] leading-relaxed text-slate-700">${g.mainIntro.replace('[H2]', '').replace(/\[H3\]/g, '')}</p>
+            <div class="grid grid-cols-2 gap-2 text-[10px] mt-2">
+              <div class="p-2 bg-rose-50 border border-rose-100 rounded">
+                <span class="font-bold text-rose-950 block mb-1">Hazards</span>
+                <ul class="space-y-1 text-slate-600 leading-normal">${painList}</ul>
+              </div>
+              <div class="p-2 bg-emerald-50 border border-emerald-100 rounded">
+                <span class="font-bold text-emerald-950 block mb-1">Measures</span>
+                <ul class="space-y-1 text-slate-600 leading-normal">${featureList}</ul>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (targetPage.pageType === 'category') {
+        htmlOutput = `
+          <div class="space-y-2 text-slate-900 font-sans">
+            <span class="text-[8px] bg-emerald-900 text-white px-2 py-0.5 rounded font-extrabold uppercase">PRODUCT CATEGORY</span>
+            <div class="bg-slate-50 border border-slate-100 p-3 rounded mt-1">
+              <h2 class="text-xs font-extrabold text-slate-900 flex items-center gap-1">
+                <i class="fa-solid fa-boxes-stacked text-senor-primary"></i>
+                ${cleanH(g.categoryHeading, '[H1]', '')}
+              </h2>
+              <p class="text-[10px] leading-relaxed text-slate-600 mt-1">${g.categoryIntro}</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // FAQ segment rendering inside approved preview box
+      if (targetPage.pageType !== 'category') {
+        htmlOutput += `
+          <div class="bg-slate-50 p-3 rounded border border-slate-150 mt-2 space-y-1 text-[10px] text-slate-900 font-sans">
+            <p class="font-bold text-slate-800 flex items-center gap-1"><i class="fa-solid fa-circle-question text-senor-primary"></i> Approved FAQ</p>
+            <div class="border-t border-slate-200/60 pt-1 space-y-1 text-slate-700">
+              <p><strong>Q: ${g.faqs && g.faqs[0] ? g.faqs[0].q : ""}</strong></p>
+              <p>A: ${g.faqs && g.faqs[0] ? g.faqs[0].a : ""}</p>
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById('handoff-boss-preview-content').innerHTML = htmlOutput;
+
+      // Populate separate Atom fields for Metadata
+      document.getElementById('h-meta-title').value = g.metaTitle || "N/A";
+      document.getElementById('h-meta-desc').value = g.metaDescription || "N/A";
+      document.getElementById('h-meta-keywords').value = g.metaKeywords || "N/A";
+
+      // Gutenberg Title & Body block separation
+      document.getElementById('h-block-h1').value = g.mainTitle ? g.mainTitle.replace('[H1] ', '') : "N/A";
+      document.getElementById('h-block-body').value = g.mainIntro || "N/A";
+
+      // Toggle optional fields
+      const suitedWrapper = document.getElementById('h-block-suited-wrapper');
+      const painWrapper = document.getElementById('h-block-pain-wrapper');
+      const faqWrapper = document.getElementById('h-block-faq-wrapper');
+
+      if (targetPage.pageType === 'products') {
+        if (suitedWrapper) suitedWrapper.classList.remove('hidden');
+        if (painWrapper) painWrapper.classList.add('hidden');
+        if (faqWrapper) faqWrapper.classList.remove('hidden');
+
+        document.getElementById('h-suited-title').value = g.suitedTitle ? g.suitedTitle.replace('[H2] ', '') : "N/A";
+        
+        let solutionsHtml = "";
+        if (g.suitedSolutions) {
+          g.suitedSolutions.forEach((s, idx) => {
+            solutionsHtml += `
+              <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs">
+                <div>
+                  <span class="block font-bold text-senor-light">Link #${idx+1}: ${s.name}</span>
+                  <span class="block text-[11px] text-slate-500 font-mono font-semibold">${s.url}</span>
+                </div>
+                <button onclick="navigator.clipboard.writeText('${s.url}'); showNotification('URL Copied', 'Sitemap target URL copied!', 'success');" class="bg-slate-800 hover:bg-slate-750 px-2 py-1 rounded text-[10px] text-slate-300 font-semibold">Copy Link</button>
+              </div>
+            `;
+          });
+        }
+        document.getElementById('h-suited-items-list').innerHTML = solutionsHtml;
+
+      } else if (targetPage.pageType === 'solutions') {
+        if (suitedWrapper) suitedWrapper.classList.add('hidden');
+        if (painWrapper) painWrapper.classList.remove('hidden');
+        if (faqWrapper) faqWrapper.classList.remove('hidden');
+
+        document.getElementById('h-painpoints').value = g.painPoints ? g.painPoints.join('\n') : "N/A";
+        document.getElementById('h-features').value = g.solutionFeatures ? g.solutionFeatures.join('\n') : "N/A";
+
+      } else if (targetPage.pageType === 'category') {
+        if (suitedWrapper) suitedWrapper.classList.add('hidden');
+        if (painWrapper) painWrapper.classList.add('hidden');
+        if (faqWrapper) faqWrapper.classList.add('hidden');
+      }
+
+      // Populate FAQ Fields independently
+      if (targetPage.pageType !== 'category' && g.faqs) {
+        if (g.faqs[0]) {
+          document.getElementById('h-faq1-q').value = g.faqs[0].q;
+          document.getElementById('h-faq1-a').value = g.faqs[0].a;
+        }
+        if (g.faqs[1]) {
+          document.getElementById('h-faq2-q').value = g.faqs[1].q;
+          document.getElementById('h-faq2-a').value = g.faqs[1].a;
+        }
+      }
+
+      document.getElementById('handoff-schema').value = g.schemaMarkup || "";
+      document.getElementById('handoff-alt').textContent = g.altText || "";
+      document.getElementById('handoff-suggestion').textContent = g.imageSuggestion || "";
+
+      showNotification("Desktop Configured", `Washed sitemap spec loaded for: ${targetPage.projectName}`, "success");
+    }
+
+    function exitDesignerWorkbench() {
+      document.getElementById('designer-workbench-container').classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Designer Atomized Clipboard Copy Utilities
+    function copyHandoffField(elementId) {
+      const field = document.getElementById(elementId);
+      field.select();
+      document.execCommand('copy');
+      showNotification("Copied Field", "Content block successfully written to system clipboard.", "success");
+    }
+
+    function copyFAQBlock(pairIndex) {
+      const q = document.getElementById(`h-faq${pairIndex}-q`).value;
+      const a = document.getElementById(`h-faq${pairIndex}-a`).value;
+      const formatted = `Q: ${q}\nA: ${a}`;
+      
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = formatted;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempTextArea);
+
+      showNotification("FAQ Copied", `FAQ Pair #${pairIndex} formatted and copied!`, "success");
+    }
+
+    function copyTextElement(elementId) {
+      const el = document.getElementById(elementId);
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = el.textContent || el.innerText;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempTextArea);
+      showNotification("Copied", "Image Alt attribute copied!", "success");
+    }
+
+    // Markdown Handout Downloader for external AI or backups
+    function downloadMarkdownPackage() {
+      const index = state.selectedHandoffIndex;
+      const page = state.approvedPagesList[index];
+      if (!page) {
+        showNotification("Export Error", "No approved deployment node selected.", "error");
+        return;
+      }
+      const g = page.generatedData;
+
+      let md = `# SEO/AEO Handoff Package: ${page.projectName}\n\n`;
+      md += `* Target slug: ${page.pageName}\n`;
+      md += `* Layout Type: ${page.pageType}\n\n`;
+      md += `## 1. META ATTRIBUTES\n\n`;
+      md += `* **Meta Title**: ${g.metaTitle || "N/A"}\n`;
+      md += `* **Meta Keywords**: ${g.metaKeywords || "N/A"}\n`;
+      md += `* **Meta Description**: ${g.metaDescription || "N/A"}\n\n`;
+      md += `## 2. MAIN HEADER & BODY\n\n`;
+      md += `### ${g.mainTitle || "N/A"}\n\n`;
+      md += `${g.mainIntro || "N/A"}\n\n`;
+
+      if (page.pageType === 'products' && g.suitedSolutions) {
+        md += `## 3. MAPPED SUITED SOLUTIONS\n\n`;
+        g.suitedSolutions.forEach((s, idx) => {
+          md += `### Solution Reference #${idx+1}\n`;
+          md += `* Name: ${s.name}\n`;
+          md += `* URL Target: ${s.url}\n`;
+          md += `* Short Description: ${s.brief}\n\n`;
+        });
+      }
+
+      if (page.pageType !== 'category') {
+        md += `## 4. SCHEMA AND ACCORDION FAQs\n\n`;
+        md += `* **FAQ 1 Question**: ${g.faqs[0].q}\n`;
+        md += `* **FAQ 1 Answer**: ${g.faqs[0].a}\n\n`;
+        md += `* **FAQ 2 Question**: ${g.faqs[1]?.q || "N/A"}\n`;
+        md += `* **FAQ 2 Answer**: ${g.faqs[1]?.a || "N/A"}\n\n`;
+      }
+
+      md += `## 5. IMAGE OPTIMIZATION\n\n`;
+      md += `* **Suggested Graphic**: ${g.imageSuggestion || "N/A"}\n`;
+      md += `* **Target Alt Attributes**: ${g.altText || "N/A"}\n\n`;
+      md += `## 6. SEMANTIC SCHEMA MARKUP\n\n\`\`\`json\n${g.schemaMarkup}\n\`\`\`\n`;
+
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Senor_Handoff_Package_${page.pageName}.md`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showNotification("Markdown Downloaded", "Handoff package exported as .md file!", "success");
+    }
+
+    // Asset copy utilities
+    function copySchemaToClipboard() {
+      const schemaBox = document.getElementById('handoff-schema');
+      schemaBox.select();
+      document.execCommand('copy');
+      showNotification("Asset Copied", "Schema.org (JSON-LD) tag block copied safely.", "success");
+    }
+
+    function simulateUploadScreenshot() {
+      const btn = document.getElementById('btn-screenshot-text');
+      const indicator = document.getElementById('screenshot-indicator');
+      btn.textContent = "Screenshot Captured";
+      indicator.classList.remove('hidden');
+      showNotification("Verified", "WordPress deployment viewport captured and logged.", "success");
+    }
+
+    // Deployed state callback
+    function submitHandoffCompleted() {
+      const index = state.selectedHandoffIndex;
+      const targetPage = state.approvedPagesList[index];
+      if (!targetPage) return;
+
+      const liveUrl = document.getElementById('liveUrlSubmitted').value;
+      if (!liveUrl.startsWith('https://www.senortech.com.au')) {
+        showNotification("Domain mismatch", "Verification Error: URL must point to production target domain 'https://www.senortech.com.au' without any duplicate '/au' folder.", "error");
+        return;
+      }
+
+      // Mark selected index as completed (page-by-page completions)
+      state.approvedPagesList[index].status = "Completed";
+      
+      state.publishedCount++;
+      state.submittedToDesign--;
+
+      document.getElementById('stat-handoff').textContent = state.submittedToDesign;
+      document.getElementById('stat-published').textContent = state.publishedCount;
+      
+      const handoffPub = document.getElementById('handoff-published-count');
+      if (handoffPub) handoffPub.textContent = parseInt(handoffPub.textContent) + 1;
+
+      document.getElementById('btn-screenshot-text').textContent = "Capture Screenshot";
+      document.getElementById('screenshot-indicator').classList.add('hidden');
+
+      // Log the publishing to history
+      logRevisionHistory("Sitemap Node Published / 完工部署", `Design completed and verified live at: ${liveUrl}`);
+
+      showNotification("Launch Registered", `Deployed live on sitemap index at:\n${liveUrl}`, "success");
+      
+      // Update database status if connected
+      savePublishedToSupabase(targetPage, liveUrl);
+
+      // Reset and go back to list
+      exitDesignerWorkbench();
+      renderHandoffTaskBoard();
+      switchRole('executive');
+    }
+
+    function reportIssue() {
+      showNotification("Layout Issue Reported", "Engineering notifications dispatched to PM and design channels.", "info");
+    }
+
+    function copyText(id) {
+      const input = document.getElementById(id);
+      input.select();
+      document.execCommand('copy');
+      showNotification("URL Copied", 'Target sitemap path: ' + input.value, "success");
+    }
+
+    // Historical revisions utility - pushes new entry to history list
+    function logRevisionHistory(typeStr, summaryText) {
+      const dateNow = new Date();
+      const formatTime = dateNow.toISOString().replace('T', ' ').substring(0, 19);
+      
+      const newLog = {
+        timestamp: formatTime,
+        author: state.approver || "PM Workspace Developer",
+        projectName: state.activeTask.projectName,
+        type: typeStr,
+        slug: state.activeTask.pageName,
+        summary: summaryText,
+        payload: JSON.parse(JSON.stringify(state.activeTask.generatedData))
+      };
+      
+      state.historyLog.unshift(newLog); // Put most recent first
+      const countEl = document.getElementById('stat-history-count');
+      if (countEl) {
+        countEl.textContent = state.historyLog.length;
+      }
+      renderHistoryArchiveTable();
+    }
+
+    // Render history hub sitemap archive table
+    function renderHistoryArchiveTable() {
+      const body = document.getElementById('history-log-table-body');
+      if (!body) return;
+      body.innerHTML = "";
+
+      if (state.historyLog.length === 0) {
+        body.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No revisions logged in this session.</td></tr>`;
+        return;
+      }
+
+      state.historyLog.forEach((log, index) => {
+        body.innerHTML += `
+          <tr class="hover:bg-slate-850 transition">
+            <td class="p-3 font-mono font-bold text-teal-400">${log.timestamp}</td>
+            <td class="p-3 font-semibold text-slate-300">${log.author}</td>
+            <td class="p-3 font-semibold text-white">
+              <span class="block">${log.projectName}</span>
+              <span class="text-[10px] text-slate-500 font-mono">slug: /${log.slug}</span>
+            </td>
+            <td class="p-3">
+              <span class="bg-teal-500/10 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded text-[11px] font-bold">
+                ${log.type}
+              </span>
+            </td>
+            <td class="p-3 text-slate-400 max-w-[240px] truncate" title="${log.summary}">${log.summary}</td>
+            <td class="p-3 text-right">
+              <button onclick="viewHistoryIndex(${index})" class="bg-slate-800 hover:bg-slate-700 text-white text-[11px] px-2 py-1 rounded transition mr-1 font-bold">
+                <i class="fa-solid fa-eye"></i> 查看 / View
+              </button>
+              <button onclick="reEditHistoryIndex(${index})" class="bg-teal-700 hover:bg-teal-600 text-white text-[11px] px-2 py-1 rounded transition font-bold">
+                <i class="fa-solid fa-pen-to-square"></i> 重新編輯 / Re-edit
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    // Check/View specific revision in a modal
+    function viewHistoryIndex(index) {
+      const log = state.historyLog[index];
+      if (!log) return;
+
+      document.getElementById('hist-modal-proj').textContent = log.projectName;
+      document.getElementById('hist-modal-time').textContent = log.timestamp;
+      document.getElementById('hist-modal-author').textContent = log.author;
+      document.getElementById('hist-modal-meta-title').textContent = log.payload.metaTitle || "N/A";
+      document.getElementById('hist-modal-main-title').textContent = log.payload.mainTitle || "N/A";
+      document.getElementById('hist-modal-main-intro').textContent = log.payload.mainIntro || "N/A";
+
+      toggleHistoryViewModal(true);
+    }
+
+    function toggleHistoryViewModal(show) {
+      const modal = document.getElementById('history-view-modal');
+      if (modal) {
+        if (show) modal.classList.remove('hidden');
+        else modal.classList.add('hidden');
+      }
+    }
+
+    // Re-edit past revision with auto audit logging trace "who and what time"
+    function reEditHistoryIndex(index) {
+      if (!state.historyLog[index]) return;
+      const log = state.historyLog[index];
+      
+      const currentUser = state.approver || "PM Workspace Developer";
+      const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+      // Restore past payload
+      state.activeTask.generatedData = JSON.parse(JSON.stringify(log.payload));
+      state.activeTask.projectName = log.projectName;
+      state.activeTask.pageName = log.slug;
+
+      // Fill PM Form & trigger rendering inside sandbox simulator immediately
+      fillPMFormFields();
+      fillReviewFormFields();
+      renderWebPreview();
+
+      // Show output block inside PM workspace
+      const output = document.getElementById('generatedOutput');
+      if (output) output.classList.remove('hidden');
+
+      // Append Audit trace record directly into the sitemap history list
+      logRevisionHistory("Re-edited / 重新編輯", `Version restored & re-edited by ${currentUser} from [${log.timestamp}] snapshot.`);
+
+      showNotification("Workspace Reloaded", `Reloaded and logged re-edit audit trace under operator [${currentUser}].`, "success");
+      showPMPanel('create');
+    }
+
+    // Supabase interactive actions
+    function toggleSupabaseModal(show) {
+      const modal = document.getElementById('supabase-modal');
+      if (show) {
+        document.getElementById('config-db-url').value = localStorage.getItem('supabase_url') || "";
+        document.getElementById('config-db-key').value = localStorage.getItem('supabase_key') || "";
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function saveDatabaseConfig() {
+      const url = document.getElementById('config-db-url').value.trim();
+      const key = document.getElementById('config-db-key').value.trim();
+
+      if (url && key) {
+        localStorage.setItem('supabase_url', url);
+        localStorage.setItem('supabase_key', key);
+        toggleSupabaseModal(false);
+        initSupabase();
+      } else {
+        showNotification("Configuration Error", "Please provide both valid URL and Anon key.", "error");
+      }
+    }
+
+    function clearSavedDatabaseKeys() {
+      localStorage.removeItem('supabase_url');
+      localStorage.removeItem('supabase_key');
+      document.getElementById('config-db-url').value = "";
+      document.getElementById('config-db-key').value = "";
+      toggleSupabaseModal(false);
+      initSupabase();
+      showNotification("Keys Cleared", "Local storage cleared. Sandbox demo mode loaded.", "info");
+    }
+
+    // Real Supabase operations (gracefully falling back to Sandbox operations)
+    async function saveDraftToSupabaseOrLocal() {
+      syncPMToDraft();
+      const task = state.activeTask;
+
+      logRevisionHistory("Draft Saved / 草稿儲存", "Content schema draft backup committed to active session.");
+
+      if (supabaseClient) {
+        try {
+          showNotification("Supabase Action", "Pushing draft data to cloud table 'sitemap_drafts'...", "info");
+          const { data, error } = await supabaseClient
+            .from('sitemap_drafts')
+            .upsert({ 
+              project_name: task.projectName,
+              page_type: task.pageType,
+              slug_name: task.pageName,
+              keywords: task.keywords,
+              draft_payload: task.generatedData,
+              last_updated: new Date()
+            });
+
+          if (error) throw error;
+          showNotification("Supabase Uploaded", "Successfully synchronized draft data with Supabase.", "success");
+        } catch (err) {
+          console.error(err);
+          showNotification("Upload Failed", "Could not sync table. Ensure 'sitemap_drafts' table is initialized in your Supabase schema.", "error");
+        }
+      } else {
+        showNotification("Draft Saved Locally", "Sandbox Demo mode is active. Draft saved successfully in local buffer.", "success");
+      }
+    }
+
+    async function saveApprovalToSupabase(approvedTask) {
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from('approved_sitemaps')
+            .upsert({
+              project_name: approvedTask.projectName,
+              metadata_title: approvedTask.generatedData.metaTitle,
+              metadata_description: approvedTask.generatedData.metaDescription,
+              schema_markup: approvedTask.generatedData.schemaMarkup,
+              status: 'Approved',
+              approved_at: new Date()
+            });
+          if (error) throw error;
+          console.log("Supabase approval saved.");
+        } catch (err) {
+          console.error("Supabase approval sync error: ", err);
+        }
+      }
+    }
+
+    async function savePublishedToSupabase(publishedTask, liveUrl) {
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient
+            .from('published_nodes')
+            .insert({
+              project_name: publishedTask.projectName,
+              live_url: liveUrl,
+              published_at: new Date()
+            });
+          if (error) throw error;
+          console.log("Supabase publish state saved.");
+        } catch (err) {
+          console.error("Supabase publish sync error: ", err);
+        }
+      }
+    }
+
+    // Window Onload Trigger
+    window.onload = function() {
+      initSupabase();
+      updateUrl();
+      updateKeywordCount();
+      loadDifyDocInfo();
+      executeNamingSynchronization();
+      updateSolutionCheckboxSelection();
+      fillPMFormFields();
+      fillReviewFormFields();
+      renderHandoffTaskBoard();
+      renderWebPreview();
+    }
+  </script>
+</body>
+</html>
