@@ -550,7 +550,7 @@
     }
   </script>
 
-  <!-- System API Config Modal (Supports Supabase & direct Gemini/GPT API Key input) -->
+  <!-- System API Config Panel (Supports Supabase & direct Gemini/GPT API Key input) -->
   <div id="supabase-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-lg w-full mx-4 space-y-4">
       <div class="flex justify-between items-center pb-2 border-b border-slate-800">
@@ -585,7 +585,7 @@
         </div>
       </div>
 
-      <!-- AI tab -->
+      <!-- AI tab (Brings total custom control over the Gemini Model ID dynamically) -->
       <div id="settings-ai" class="hidden space-y-3 pt-2">
         <p class="text-[11px] text-slate-400 leading-relaxed">
           Bypass Dify! Connect directly to Google Gemini or OpenAI GPT models using your client-side API Key. Kept completely inside browser storage.
@@ -593,11 +593,30 @@
         <div class="space-y-3">
           <label class="block">
             <span class="text-xs text-slate-400 font-semibold">AI Model Provider / 智慧大腦平台</span>
-            <select id="config-ai-provider" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-teal-300 font-bold">
-              <option value="gemini" selected>Google Gemini Pro (Gemini-1.5-Flash) - Recommended / Free-tier</option>
-              <option value="openai">OpenAI GPT (GPT-4o-mini)</option>
+            <select id="config-ai-provider" onchange="toggleAiModelField()" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-teal-300 font-bold">
+              <option value="gemini" selected>Google Gemini Pro (API Key Direct)</option>
+              <option value="openai">OpenAI GPT (API Key Direct)</option>
             </select>
           </label>
+          
+          <div id="gemini-model-selector-block" class="space-y-3">
+            <label class="block">
+              <span class="text-xs text-slate-400 font-semibold">Gemini Model ID / 模型名稱</span>
+              <select id="config-gemini-model" onchange="toggleCustomGeminiModelField()" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-300">
+                <option value="gemini-1.5-flash">gemini-1.5-flash (Standard Stable)</option>
+                <option value="gemini-2.5-flash">gemini-2.5-flash (Advanced Stable)</option>
+                <option value="gemini-2.0-flash">gemini-2.0-flash (New Fast)</option>
+                <option value="custom">Custom ID (Type custom value below)</option>
+              </select>
+            </label>
+            <div id="custom-gemini-input-wrapper" class="hidden">
+              <label class="block">
+                <span class="text-xs text-slate-400">Custom Gemini Model ID</span>
+                <input id="config-gemini-custom" placeholder="e.g., gemini-1.5-pro-latest" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300" />
+              </label>
+            </div>
+          </div>
+
           <label class="block">
             <span class="text-xs text-slate-400 font-semibold">API Key / 金鑰密碼</span>
             <input id="config-ai-key" type="password" placeholder="AI-Key: AIzaSy... / sk-proj-..." class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono glow-border text-slate-300" />
@@ -625,6 +644,16 @@
 
       document.getElementById(tab).classList.remove('hidden');
       document.getElementById('btn-' + tab).className = "px-4 py-2 border-b-2 border-teal-500 font-bold text-teal-400";
+    }
+
+    function toggleAiModelField() {
+      const provider = document.getElementById('config-ai-provider').value;
+      document.getElementById('gemini-model-selector-block').classList.toggle('hidden', provider !== 'gemini');
+    }
+    
+    function toggleCustomGeminiModelField() {
+      const val = document.getElementById('config-gemini-model').value;
+      document.getElementById('custom-gemini-input-wrapper').classList.toggle('hidden', val !== 'custom');
     }
   </script>
 
@@ -1052,18 +1081,18 @@
               </div>
             </div>
 
-            <!-- Real-time Google Autocomplete Search Suggestions (Live Integration) -->
+            <!-- Real-time Google Autocomplete Search Suggestions (Filtered strictly to POS/IPC/Accessories/EPOS) -->
             <div class="bg-slate-950 border border-slate-850 rounded-2xl p-4 space-y-3">
               <div class="flex justify-between items-center">
                 <p class="text-xs font-bold text-teal-400 flex items-center gap-1.5">
-                  <i class="fa-brands fa-google text-blue-500"></i> Live Google Australia Search Hot Trends
+                  <i class="fa-brands fa-google text-blue-500"></i> Live Google Australia Search Hot Trends (Industry Filtered)
                 </p>
                 <button onclick="triggerLiveGoogleSuggest()" class="bg-slate-800 hover:bg-slate-750 text-[10px] text-slate-200 px-3 py-1 rounded-lg font-bold transition">
                   <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Retrieve Hot Queries / 撈取熱搜詞
                 </button>
               </div>
               <p class="text-[10px] text-slate-400">
-                Queries Google's real-time suggest database based on your Slug name. Click on any keyword below to immediately bind it into your target checklist!
+                Queries Google's real-time suggest database based on your Slug name, keeping suggestions strictly within POS systems, IPC (industrial PCs), screens/displays, accessories, all-in-one terminals, and epos topics.
               </p>
               <div id="suggested-badges-wrapper" class="flex flex-wrap gap-1.5 pt-1">
                 <span class="text-[10px] text-slate-500 italic bg-slate-900 border border-slate-850 px-2 py-1 rounded">No terms loaded. Click 'Retrieve Hot Queries' to search Google complete.</span>
@@ -1298,7 +1327,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
                 </div>
               </div>
 
-              <!-- Dynamic Area: Painpoints & Solutions Features -->
+              <!-- Dynamic Area: Painpoints & Solutions Features (Stitches PM Keywords dynamically) -->
               <div id="out-solution-wrapper" class="hidden space-y-3">
                 <label class="block">
                   <span class="text-xs text-slate-400 font-bold">Solutions Common Customer Painpoints</span>
@@ -1611,7 +1640,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
 
           <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 flex justify-between items-center text-xs text-slate-400">
             <span>Schema.org (JSON-LD) tag block status: <span class="text-emerald-400 font-bold">READY</span></span>
-            <button onclick="showNotification('Schema JSON-LD', state.activeTask.generatedData.schemaMarkup, 'info')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1 rounded-lg transition text-[10px]">Verify JSON-LD code</button>
+            <button onclick="showNotification('Schema JSON-LD', state.activeTask.generatedData.schemaMarkup, 'info')" class="bg-slate-800 hover:bg-slate-750 text-slate-300 px-3 py-1 rounded-lg transition text-[10px]">Verify JSON-LD code</button>
           </div>
         </div>
       </div>
@@ -2089,7 +2118,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       if (reviewContainer) reviewContainer.innerHTML = revHtml;
     }
 
-    // Google Suggest Dynamic JSONP retrieval (100% Real Autocomplete without API Key!)
+    // Google Suggest Dynamic JSONP retrieval (Industry Filtered strictly based on user's business hardware keywords)
     function triggerLiveGoogleSuggest() {
       const slugVal = document.getElementById('pageName').value.trim();
       const wrap = document.getElementById('suggested-badges-wrapper');
@@ -2110,28 +2139,60 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           return;
         }
 
-        wrap.innerHTML = "";
-        terms.forEach((term, idx) => {
-          const badge = document.createElement('button');
-          badge.className = "text-[10px] font-semibold text-teal-200 bg-teal-950/40 border border-teal-800/40 hover:border-senor-light px-2 py-1 rounded-full transition-all cursor-pointer";
-          badge.innerHTML = `<i class="fa-solid fa-plus mr-1 text-[8px]"></i> ${term}`;
-          badge.onclick = () => {
-            // Apply this suggestion into active keyword slots
-            applySearchTermToKeywords(term);
-          };
-          wrap.appendChild(badge);
+        // Search filter criteria (Correction 1: Filter to POS, IPC, Monitor, accessories, epos, etc.)
+        const allowedKeywords = [
+          "pos", "system", "ipc", "monitor", "screen", "display", "accessory", "accessories", 
+          "peripheral", "peripherals", "all-in-one", "all in one", "epos", "printer", "touch", 
+          "terminal", "hardware", "retail", "kitchen", "hospitality", "automation", "fanless", 
+          "rugged", "industrial"
+        ];
+
+        const filteredTerms = terms.filter(term => {
+          const lowerTerm = term.toLowerCase();
+          return allowedKeywords.some(keyword => lowerTerm.includes(keyword));
         });
 
-        showNotification("Success", `Loaded ${terms.length} live Google suggestions.`, "success");
+        wrap.innerHTML = "";
+        
+        if (filteredTerms.length === 0) {
+          // Dynamic fallback mapping when Google's suggestions don't match our strict filters
+          const fallbackTerms = [
+            `${queryTerm} pos system`,
+            `${queryTerm} all in one pos`,
+            `${queryTerm} epos touch terminal`,
+            `${queryTerm} industrial ipc panel pc`,
+            `${queryTerm} waterproof monitor screen`,
+            `${queryTerm} pos hardware accessories`
+          ];
+          fallbackTerms.forEach(term => {
+            createSuggestBadge(term, wrap);
+          });
+          showNotification("AEO Suggest Filters Active", "Displaying targeted POS, IPC and screen suggest fallbacks.", "success");
+        } else {
+          filteredTerms.forEach(term => {
+            createSuggestBadge(term, wrap);
+          });
+          showNotification("AEO Suggest Filters Active", `Loaded ${filteredTerms.length} POS/IPC specific Google Australia suggestions.`, "success");
+        }
+
         // Cleanup script tag
         document.getElementById('google-jsonp-script')?.remove();
       };
 
       const script = document.createElement('script');
       script.id = 'google-jsonp-script';
-      // client=chrome/firefox CORS endpoint uses standard JSONP
       script.src = `https://suggestqueries.google.com/complete/search?client=chrome&hl=en&gl=au&q=${encodeURIComponent(queryTerm)}&callback=googleSuggestCallback`;
       document.body.appendChild(script);
+    }
+
+    function createSuggestBadge(term, container) {
+      const badge = document.createElement('button');
+      badge.className = "text-[10px] font-semibold text-teal-200 bg-teal-950/40 border border-teal-800/40 hover:border-senor-light px-2 py-1 rounded-full transition-all cursor-pointer";
+      badge.innerHTML = `<i class="fa-solid fa-plus mr-1 text-[8px]"></i> ${term}`;
+      badge.onclick = () => {
+        applySearchTermToKeywords(term);
+      };
+      container.appendChild(badge);
     }
 
     function applySearchTermToKeywords(term) {
@@ -2224,7 +2285,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         
         Page Type: ${pageType}
         Target word count: ${targetCount}
-        Focus keywords (You MUST naturally embed ALL of these into headers or paragraph copy):
+        Focus keywords (You MUST naturally embed ALL of these into headers, paragraph copy, pain points, and solutions):
         1. ${keywords[0]}
         2. ${keywords[1]}
         3. ${keywords[2]}
@@ -2263,11 +2324,16 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         let responseJsonText = "";
         
         if (aiProvider === 'gemini') {
-          // Fetch from Google Gemini API
-          progress.style.width = "40%";
-          log.textContent = "Generative RAG: Querying Gemini-1.5-Flash...";
+          // Dynamic Model selection (Correction 2: allow flexible Gemini model configuration)
+          let geminiModelName = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+          if (geminiModelName === 'custom') {
+            geminiModelName = localStorage.getItem('gemini_custom') || 'gemini-1.5-flash';
+          }
           
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${aiKey}`;
+          progress.style.width = "40%";
+          log.textContent = `Generative RAG: Querying Gemini Model [${geminiModelName}]...`;
+          
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModelName}:generateContent?key=${aiKey}`;
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2405,6 +2471,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         g.altText = `Robust Senor POS hardware terminal standing operating smoothly in busy commercial kitchen showing orders.`;
         g.imageSuggestion = `A premium close-up of a fanless terminal placed on a stainless steel commercial kitchen counter with steam rising in the background.`;
       } else if (type === 'solutions') {
+        // (Correction 3: Dynamically blend keywords into solutions templates)
         g.mainTitle = `[H1] Specialized Robust ${focusKeywords[0]} Systems for High-Traffic Australian Dining Venues`;
         g.mainIntro = `[H2] Solving Food Service Outages and Communication Lags under Peak Operational Shifts\n\n[H3] Fully Integrated ${focusKeywords[1]} Configurations\nOur specialized hospitality solutions are designed explicitly to lower restaurant hardware downtimes. By implementing fanless touchscreen computer frames, food preparation workflows speed up by 30% while securing zero internal dust accumulation.${extensionSentence}\n\n[H3] Heavy-Duty Moisture Protective Terminals Built as ${focusKeywords[2]}\nChefs can rely on stable touchscreen panel controllers that operate smoothly even under heavy hot steam environment and direct gloved-hands control.`;
         
@@ -2413,12 +2480,12 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         g.metaDescription = `Equip your busy fast-casual lines with commercial-grade ${focusKeywords[1]} monitors. Specifically certified to perform inside demanding hot kitchen environments.`;
 
         g.painPoints = [
-          "Frequent system failures triggered by heavy oil accumulation on circuit components.",
-          "Touch panel signal lag caused by hot kitchen humidity and chefs' wet-finger touches."
+          `Frequent failures of standard POS units due to wet conditions where a specialized ${focusKeywords[0]} is required.`,
+          `High maintenance costs caused by flour dust and grease entering non-${focusKeywords[1]} setups during busy peak dining hours.`
         ];
         g.solutionFeatures = [
-          `Commercial ${fileData.specs.waterproof || "IP66 waterproof design"} layout supporting reliable wet-hand touchscreen commands.`,
-          `High-efficiency fanless ${fileData.specs.chassis} dissipating heat smoothly without grease build-up.`
+          `Certified ${fileData.specs.waterproof || "IP66 waterproof design"} layout in our ${focusKeywords[0]} range supporting reliable wet-hand commands.`,
+          `High-efficiency fanless ${fileData.specs.chassis} dissipating heat smoothly in our premium ${focusKeywords[2]} setups.`
         ];
       } else if (type === 'category') {
         // Purely title & introduction without FAQs/product grid elements
@@ -2709,7 +2776,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
           </div>
         `;
       } 
-      // 2. SOLUTIONS VIEW
+      // 2. SOLUTIONS VIEW (Keywords fully adapted/integrated)
       else if (type === 'solutions') {
         let painList = g.painPoints ? g.painPoints.map(p => `<li class="flex items-start gap-1.5"><i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0"></i> <span>${p}</span></li>`).join('') : "";
         let featureList = g.solutionFeatures ? g.solutionFeatures.map(f => `<li class="flex items-start gap-1.5"><i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i> <span>${f}</span></li>`).join('') : "";
@@ -2722,11 +2789,11 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-[11px]">
               <div class="p-3 bg-rose-50 border border-rose-100 rounded-xl">
-                <p class="font-bold text-rose-950 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-circle-exclamation"></i> Common Hazards Solved</p>
+                <p class="font-bold text-rose-950 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-circle-exclamation"></i> Common Hazards Solved (Painpoints)</p>
                 <ul class="space-y-2 text-slate-600 leading-relaxed">${painList}</ul>
               </div>
               <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                <p class="font-bold text-emerald-950 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-shield-halved"></i> Senor Hardware Measures</p>
+                <p class="font-bold text-emerald-950 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-shield-halved"></i> Senor Hardware Measures (Countermeasures)</p>
                 <ul class="space-y-2 text-slate-600 leading-relaxed">${featureList}</ul>
               </div>
             </div>
@@ -3229,8 +3296,12 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
         // AI tab keys
         document.getElementById('config-ai-provider').value = localStorage.getItem('ai_provider') || "gemini";
         document.getElementById('config-ai-key').value = localStorage.getItem('ai_key') || "";
+        document.getElementById('config-gemini-model').value = localStorage.getItem('gemini_model') || "gemini-1.5-flash";
+        document.getElementById('config-gemini-custom').value = localStorage.getItem('gemini_custom') || "";
 
         modal.classList.remove('hidden');
+        toggleAiModelField();
+        toggleCustomGeminiModelField();
       } else {
         modal.classList.add('hidden');
       }
@@ -3243,6 +3314,8 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       // AI Keys
       const aiProvider = document.getElementById('config-ai-provider').value;
       const aiKey = document.getElementById('config-ai-key').value.trim();
+      const geminiModel = document.getElementById('config-gemini-model').value;
+      const geminiCustom = document.getElementById('config-gemini-custom').value.trim();
 
       if (url && key) {
         localStorage.setItem('supabase_url', url);
@@ -3252,6 +3325,8 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       if (aiKey) {
         localStorage.setItem('ai_provider', aiProvider);
         localStorage.setItem('ai_key', aiKey);
+        localStorage.setItem('gemini_model', geminiModel);
+        localStorage.setItem('gemini_custom', geminiCustom);
       }
 
       toggleSupabaseModal(false);
@@ -3264,10 +3339,13 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
       localStorage.removeItem('supabase_key');
       localStorage.removeItem('ai_provider');
       localStorage.removeItem('ai_key');
+      localStorage.removeItem('gemini_model');
+      localStorage.removeItem('gemini_custom');
 
       document.getElementById('config-db-url').value = "";
       document.getElementById('config-db-key').value = "";
       document.getElementById('config-ai-key').value = "";
+      document.getElementById('config-gemini-custom').value = "";
 
       toggleSupabaseModal(false);
       initSupabase();
