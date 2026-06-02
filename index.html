@@ -615,6 +615,14 @@
                 <input id="config-gemini-custom" placeholder="e.g., gemini-1.5-pro-latest" class="mt-1 w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300" />
               </label>
             </div>
+            
+            <!-- Real Dynamic Model Retrieval Action Button -->
+            <div class="flex gap-2 mt-2">
+              <button type="button" onclick="fetchAvailableGeminiModels()" class="bg-amber-600 hover:bg-amber-500 text-slate-100 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all">
+                <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Test Key & Fetch Available Models / 測試金鑰並獲取可用模型
+              </button>
+            </div>
+            <div id="model-fetch-log" class="text-[10px] text-slate-400 font-mono mt-1 max-h-20 overflow-y-auto soft-scrollbar"></div>
           </div>
 
           <label class="block">
@@ -654,6 +662,59 @@
     function toggleCustomGeminiModelField() {
       const val = document.getElementById('config-gemini-model').value;
       document.getElementById('custom-gemini-input-wrapper').classList.toggle('hidden', val !== 'custom');
+    }
+
+    // Dynamic available models listing tool mapping
+    async function fetchAvailableGeminiModels() {
+      const aiKey = document.getElementById('config-ai-key').value.trim();
+      const logDiv = document.getElementById('model-fetch-log');
+      if (!aiKey) {
+        showNotification("Key required", "Please enter a Gemini API Key first.", "error");
+        return;
+      }
+      logDiv.innerHTML = "Connecting to Google AI API to list models...";
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${aiKey}`);
+        if (!res.ok) {
+          throw new Error(`Google API returned status ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.models) {
+          throw new Error("No models returned in payload");
+        }
+        // Filter models with supportedGenerationMethods: generateContent
+        const genModels = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
+        
+        const select = document.getElementById('config-gemini-model');
+        select.innerHTML = ""; // Clear
+        
+        genModels.forEach(m => {
+          const cleanName = m.name.replace('models/', '');
+          const opt = document.createElement('option');
+          opt.value = cleanName;
+          opt.textContent = `${cleanName} (${m.displayName || 'Model'})`;
+          select.appendChild(opt);
+        });
+        
+        // Add custom choice
+        const customOpt = document.createElement('option');
+        customOpt.value = "custom";
+        customOpt.textContent = "Custom ID (Type custom value below)";
+        select.appendChild(customOpt);
+        
+        logDiv.innerHTML = `<span class="text-emerald-400">Successfully fetched ${genModels.length} models!</span> Select target model from the list above.`;
+        showNotification("Gemini API Sync", `Loaded ${genModels.length} compatible generation models dynamically.`, "success");
+        
+        // Auto select first one and trigger UI state
+        if (genModels.length > 0) {
+          select.value = genModels[0].name.replace('models/', '');
+          toggleCustomGeminiModelField();
+        }
+      } catch(err) {
+        console.error(err);
+        logDiv.innerHTML = `<span class="text-rose-400">Error: ${err.message}</span>`;
+        showNotification("API Test Outage", `Failed connecting Google models catalog: ${err.message}`, "error");
+      }
     }
   </script>
 
@@ -3222,7 +3283,7 @@ Fanless motherboard with high-efficiency heatsink chassis.</textarea>
             </td>
             <td class="p-3 text-slate-400 max-w-[240px] truncate" title="${log.summary}">${log.summary}</td>
             <td class="p-3 text-right space-x-1">
-              <button onclick="viewHistoryIndex(${index})" class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] px-2.5 py-1.5 rounded-lg transition font-bold">
+              <button onclick="viewHistoryIndex(${index})" class="bg-slate-800 hover:bg-slate-750 text-white text-[10px] px-2.5 py-1.5 rounded-lg transition font-bold">
                 <i class="fa-solid fa-eye"></i> 查看 / View
               </button>
               <button onclick="reEditHistoryIndex(${index})" class="bg-teal-700 hover:bg-teal-600 text-white text-[10px] px-2.5 py-1.5 rounded-lg transition font-bold">
